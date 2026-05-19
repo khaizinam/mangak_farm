@@ -245,6 +245,7 @@ function renderPlotInfo() {
         btnHtml += `<button class="btn btn-purple w-full" onclick="handlePesticide('${selectedPlot}')">🧪 Phun thuốc (${G.inventory['pesticide']})</button>`;
       }
     }
+    btnHtml += `<button class="btn btn-red w-full" onclick="handleClearPlot('${selectedPlot}')">⛏️ Cuốc đất (Huỷ cây)</button>`;
   }
   btnsEl.innerHTML = btnHtml;
   actEl.style.display = '';
@@ -466,6 +467,21 @@ function handleRemoveDead(key) {
   removeDead(key);
   selectedPlot = null;
   render(); toast('🗑️ Đã dọn cây chết', 'info');
+}
+function handleClearPlot(key) {
+  const up = G.plants[key];
+  if (!up) return;
+  const plant = PLANTS_DATA[up.plant_id];
+  if (confirm(`Bạn có chắc chắn muốn cuốc đất để huỷ bỏ cây ${plant.name} không? (Hạt giống sẽ không được hoàn lại)`)) {
+    const res = clearPlot(key);
+    if (res.ok) {
+      selectedPlot = null;
+      render();
+      toast('⛏️ Đã cuốc đất và huỷ cây thành công!', 'success');
+    } else {
+      toast(res.msg, 'error');
+    }
+  }
 }
 function handleBuyLand() {
   const res = buyLand(currentZone);

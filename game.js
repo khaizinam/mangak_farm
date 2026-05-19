@@ -428,6 +428,14 @@ function removeDead(plotKey) {
   saveState();
 }
 
+function clearPlot(plotKey) {
+  const up = G.plants[plotKey];
+  if (!up) return { ok: false, msg: 'Không có cây ở ô này' };
+  delete G.plants[plotKey];
+  saveState();
+  return { ok: true };
+}
+
 // ============================================================
 // SHOP ACTIONS
 // ============================================================
@@ -518,6 +526,6 @@ window.GAME = {
   PESTICIDE_PRICE, LAND_PRICES,
   loadState, saveState, syncUnlockedPlots,
   lazyUpdateAll, lazyUpdatePlant, calcNetYield, calcGrossYield,
-  plantSeed, waterPlant, catchBug, usePesticide, useFertilizer, harvestPlant, removeDead,
+  plantSeed, waterPlant, catchBug, usePesticide, useFertilizer, harvestPlant, removeDead, clearPlot,
   buyItem, sellItem, buyLand, changeSeason,
 };
