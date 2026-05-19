@@ -311,7 +311,7 @@ function renderBuyLand() {
   }
   const totalUnlocked = G.plots_unlocked.reduce((a, b) => a + b, 0);
   const pIdx = Math.floor(totalUnlocked / 3);
-  const price = LAND_PRICES[pIdx] || 999999;
+  const price = LAND_PRICES[pIdx] ?? 999999;
   btn.style.display = '';
   btn.textContent = `🏗️ Mua thêm 3 ô (+${price}🪙)`;
   info.textContent = `${current}/36 ô đã mở`;

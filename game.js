@@ -39,13 +39,11 @@ const PESTICIDE_DURATION_MS = 24 * 60 * 60 * 1000; // 24h
 const REAL_MS_PER_GAME_DAY = 24 * 60 * 60 * 1000; // 1 ngày thực = 1 ngày game
 
 // Giá mua ô đất theo từng batch (3 ô mỗi lần)
-const LAND_PRICES = [0, 0, 200, 500, 1000, 2000, 3500, 5000, 8000, 12000];
-let _landStep = 12000;
-let _landLast = 12000;
-for (let i = 10; i <= 36; i++) {
-  _landLast += _landStep;
-  LAND_PRICES.push(Math.round(_landLast / 1000) * 1000);
-  _landStep = Math.floor(_landStep * 1.5);
+const LAND_PRICES = [0];
+let _currentPrice = 12000;
+for (let i = 1; i <= 36; i++) {
+  LAND_PRICES.push(_currentPrice);
+  _currentPrice *= 2; // tăng luỹ tiến gấp đôi
 }
 
 // ============================================================
@@ -473,7 +471,7 @@ function buyLand(zoneIndex) {
   const current = G.plots_unlocked[zoneIndex];
   const totalUnlocked = G.plots_unlocked.reduce((a, b) => a + b, 0);
   const priceIdx = Math.floor(totalUnlocked / 3);
-  const price = LAND_PRICES[priceIdx] || 999999;
+  const price = LAND_PRICES[priceIdx] ?? 999999;
 
   if (current >= 36) return { ok: false, msg: 'Khu đất đã đầy' };
   if (G.gold < price) return { ok: false, msg: `Cần ${price}🪙` };
