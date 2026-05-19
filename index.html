@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🌾 MangaK Farm</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="min-h-screen text-white">
+
+<!-- TOP BAR -->
+<header class="sticky top-0 z-10" style="background:#0f3460; border-bottom:2px solid #F4C842;">
+  <div class="max-w-7xl mx-auto px-4 py-2 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-3 min-w-0">
+      <span class="pixel text-2xl text-yellow-400">🌾 MangaK Farm</span>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <!-- SEASON -->
+      <div class="flex items-center gap-1">
+        <span class="text-xs text-gray-400">Mùa:</span>
+        <select id="seasonSelect" disabled title="Mùa tự động theo lịch game" class="bg-transparent border border-yellow-500 text-yellow-400 rounded px-2 py-1 text-sm font-bold cursor-not-allowed">
+          <option value="spring">🌸 Xuân</option>
+          <option value="summer">☀️ Hạ</option>
+          <option value="autumn">🍂 Thu</option>
+          <option value="winter">❄️ Đông</option>
+        </select>
+      </div>
+      <div class="flex items-center gap-1">
+        <span class="text-xs text-gray-400">Ngày:</span>
+        <span class="text-sm font-bold text-yellow-400" id="dayDisplay">1/30</span>
+      </div>
+      <!-- GOLD -->
+      <div class="gold-bar rounded-full px-4 py-1 flex items-center gap-2">
+        <span class="text-lg">🪙</span>
+        <span class="text-xl font-bold text-gray-900" id="goldDisplay">0</span>
+      </div>
+      <!-- SHOP -->
+      <button class="btn btn-yellow" onclick="openShop()">🏪 Tiệm tạp hóa</button>
+      <!-- INVENTORY -->
+      <button class="btn btn-purple" onclick="openInventory()">🎒 Túi đồ</button>
+      <!-- RESET -->
+      <button class="btn btn-red" onclick="confirmResetGame()">🔄 Reset</button>
+    </div>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main class="max-w-7xl mx-auto px-4 py-4 flex flex-col lg:flex-row gap-4">
+
+  <!-- FARM AREA -->
+  <div class="flex-1 min-w-0">
+    <!-- ZONE TABS -->
+    <div class="flex gap-1 mb-0" id="zoneTabs"></div>
+
+    <!-- GRID AREA -->
+    <div style="background:#16213e; border:2px solid #2a3a5e; border-radius:0 12px 12px 12px; padding:16px;">
+      <div id="farmGrid" class="grid gap-1" style="grid-template-columns:repeat(6,52px); grid-template-rows:repeat(6,52px);"></div>
+
+      <!-- BUY LAND BUTTON -->
+      <div class="mt-3 flex items-center gap-3" id="buyLandArea">
+        <button class="btn btn-green text-sm" id="buyLandBtn" onclick="handleBuyLand()"></button>
+        <span class="text-xs text-gray-400" id="buyLandInfo"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div style="width:100%; max-width:280px; flex-shrink:0;">
+    <!-- SELECTED PLOT INFO -->
+    <div class="sidebar-card" id="plotInfoCard">
+      <div class="text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">📋 Ô đất</div>
+      <div id="plotInfo" class="text-sm text-gray-300">Chọn một ô đất để xem thông tin</div>
+    </div>
+
+    <!-- QUICK ACTIONS -->
+    <div class="sidebar-card" id="quickActions" style="display:none;">
+      <div class="text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">⚡ Hành động</div>
+      <div id="actionButtons" class="flex flex-col gap-2"></div>
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="sidebar-card">
+      <div class="text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">📊 Farm</div>
+      <div id="farmSummary" class="text-sm space-y-1"></div>
+    </div>
+
+    <!-- AUTO REFRESH indicator -->
+    <div class="text-center mt-2">
+      <span class="text-xs text-gray-600" id="refreshStatus">🔄 Auto sync: đang chờ</span>
+    </div>
+  </div>
+</main>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- SHOP MODAL -->
+<div id="shopModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box p-0">
+    <div class="flex items-center justify-between p-4 border-b border-yellow-500">
+      <span class="pixel text-xl text-yellow-400">🏪 Tiệm Tạp Hóa</span>
+      <div class="flex items-center gap-4">
+        <span class="text-yellow-400 font-bold">🪙 <span id="shopGold">0</span></span>
+        <button onclick="closeShop()" class="text-gray-400 hover:text-white text-xl">✕</button>
+      </div>
+    </div>
+    <!-- SHOP TABS -->
+    <div class="flex border-b border-gray-700">
+      <button class="flex-1 py-2 text-sm font-bold shop-tab active" onclick="showShopTab('buy')" id="tabBuy">🛒 Mua</button>
+      <button class="flex-1 py-2 text-sm font-bold shop-tab" onclick="showShopTab('sell')" id="tabSell">💰 Bán</button>
+    </div>
+    <div id="shopContent" class="p-4"></div>
+  </div>
+</div>
+
+<!-- INVENTORY MODAL -->
+<div id="inventoryModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box p-0">
+    <div class="flex items-center justify-between p-4 border-b border-yellow-500">
+      <span class="pixel text-xl text-yellow-400">🎒 Túi Đồ</span>
+      <button onclick="closeInventory()" class="text-gray-400 hover:text-white text-xl">✕</button>
+    </div>
+    <div id="inventoryContent" class="p-4"></div>
+  </div>
+</div>
+
+<!-- PLANT MODAL -->
+<div id="plantModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box p-0">
+    <div class="flex items-center justify-between p-4 border-b border-yellow-500">
+      <span class="pixel text-xl text-yellow-400">🌱 Gieo Hạt</span>
+      <button onclick="closePlantModal()" class="text-gray-400 hover:text-white text-xl">✕</button>
+    </div>
+    <div id="plantModalContent" class="p-4"></div>
+  </div>
+</div>
+
+<!-- FERTILIZER MODAL -->
+<div id="fertilizerModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box p-0">
+    <div class="flex items-center justify-between p-4 border-b border-yellow-500">
+      <span class="pixel text-xl text-yellow-400">🌿 Chọn phân bón</span>
+      <button onclick="closeFertilizerModal()" class="text-gray-400 hover:text-white text-xl">✕</button>
+    </div>
+    <div id="fertilizerModalContent" class="p-4"></div>
+  </div>
+</div>
+
+<!-- START SEASON MODAL -->
+<div id="startSeasonModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box p-0">
+    <div class="flex items-center justify-between p-4 border-b border-yellow-500">
+      <span class="pixel text-xl text-yellow-400">📅 Chọn mùa bắt đầu</span>
+      <button onclick="closeStartSeasonModal()" class="text-gray-400 hover:text-white text-xl">✕</button>
+    </div>
+    <div id="startSeasonContent" class="p-4"></div>
+  </div>
+</div>
+
+<script src="game.js"></script>
+<script>
+// ============================================================
+// UI STATE
+// ============================================================
+// Các dữ liệu và hàm đã được khai báo global trong game.js
+
+let selectedPlot = null;
+let currentZone = 0;
+let plantingPlotKey = null;
+let selectedPlantId = null;
+let selectedFert = 0;
+let fertilizePlotKey = null;
+let selectedFertilizerType = 0;
+let shopTab = 'buy';
+let autoRefreshTimer = null;
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('seasonSelect').value = G.season;
+  document.getElementById('seasonSelect').addEventListener('change', (e) => {
+    changeSeason(e.target.value);
+    render();
+    toast(`Đổi sang ${SEASON_LABELS[G.season]}`, 'info');
+  });
+
+  render();
+  if (G.needsStartSeason) openStartSeasonModal();
+  startAutoRefresh();
+});
+
+function startAutoRefresh() {
+  autoRefreshTimer = setInterval(() => {
+    const seasonChanged = updateSeasonClock();
+    const changed = lazyUpdateAll();
+    updateGold();
+    updateSeasonDisplay();
+    updateDayDisplay();
+    renderGrid();
+    renderSidebar();
+    if (changed) toast('🔄 Trạng thái cây đã cập nhật!', 'info');
+    if (seasonChanged) toast(`🍂 Chuyển sang ${SEASON_LABELS[G.season]}`, 'success');
+    document.getElementById('refreshStatus').textContent = `🔄 Sync: ${new Date().toLocaleTimeString('vi')}`;
+  }, 10000);
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function render() {
+  updateSeasonClock();
+  lazyUpdateAll();
+  renderZoneTabs();
+  renderGrid();
+  renderSidebar();
+  updateGold();
+  updateSeasonDisplay();
+  updateDayDisplay();
+  renderBuyLand();
+}
+
+function updateGold() {
+  document.getElementById('goldDisplay').textContent = G.gold.toLocaleString('vi');
+  const shopGold = document.getElementById('shopGold');
+  if (shopGold) shopGold.textContent = G.gold.toLocaleString('vi');
+}
+
+function renderZoneTabs() {
+  const names = ['🏡 Khu 1', '🌿 Khu 2', '🌳 Khu 3'];
+  document.getElementById('zoneTabs').innerHTML = names.map((n,i) => `
+    <div class="zone-tab ${i===currentZone?'active':''}" onclick="switchZone(${i})">${n}
+      <span class="text-xs ml-1 opacity-70">${G.plots_unlocked[i]}/36</span>
+    </div>
+  `).join('');
+}
+
+function switchZone(z) {
+  currentZone = z;
+  selectedPlot = null;
+  renderZoneTabs();
+  renderGrid();
+  renderSidebar();
+  renderBuyLand();
+}
+
+function renderGrid() {
+  const grid = document.getElementById('farmGrid');
+  let html = '';
+  for (let i = 0; i < 36; i++) {
+    const key = `${currentZone}_${i}`;
+    const plot = G.plots[key];
+    const up = G.plants[key];
+    const isSelected = selectedPlot === key;
+
+    if (plot.locked) {
+      html += `<div class="plot-cell locked" title="Ô đất bị khóa">🔒</div>`;
+      continue;
+    }
+
+    if (!up) {
+      html += `<div class="plot-cell empty ${isSelected?'ring-2 ring-yellow-400':''}"
+        onclick="selectPlot('${key}')" title="Ô trống - click để trồng cây">🟫</div>`;
+      continue;
+    }
+
+    // Has plant
+    const plant = PLANTS_DATA[up.plant_id];
+    const waterPct = Math.round(up.current_water);
+    const hasBug = !!up.bug_started_at;
+    const statusClass = up.status === 0 ? 'growing' : up.status === 1 ? 'ready' : 'dead';
+    const bugClass = hasBug ? 'bug' : '';
+    const grossY = calcGrossYield(up, plant);
+    const netY = calcNetYield(up);
+    const dmgPct = Math.round((1 - netY/grossY)*100);
+
+    const statusEmoji = up.status === 0 ? '🌱' : up.status === 1 ? '✨' : '💀';
+
+    html += `<div class="plot-cell ${statusClass} ${bugClass} ${isSelected?'ring-2 ring-yellow-400':''}"
+      onclick="selectPlot('${key}')" title="${plant.name}">
+      <span style="font-size:20px">${plant.emoji}</span>
+      <span>${statusEmoji}${hasBug?'🐛':''}</span>
+      <div class="water-bar"><div class="water-fill" style="width:${waterPct}%"></div></div>
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function renderBuyLand() {
+  const btn = document.getElementById('buyLandBtn');
+  const info = document.getElementById('buyLandInfo');
+  const z = currentZone;
+  const current = G.plots_unlocked[z];
+  
+  if (z > 0 && G.plots_unlocked[z - 1] < 36) {
+    btn.style.display = 'none';
+    info.textContent = `Yêu cầu mở hết Khu ${z} trước`;
+    return;
+  }
+
+  if (current >= 36) {
+    btn.style.display = 'none';
+    info.textContent = 'Khu đất đã mở hết';
+    return;
+  }
+  const totalUnlocked = G.plots_unlocked.reduce((a, b) => a + b, 0);
+  const pIdx = Math.floor(totalUnlocked / 3);
+  const price = LAND_PRICES[pIdx] || 999999;
+  btn.style.display = '';
+  btn.textContent = `🏗️ Mua thêm 3 ô (+${price}🪙)`;
+  info.textContent = `${current}/36 ô đã mở`;
+}
+
+function renderSidebar() {
+  renderPlotInfo();
+  renderFarmSummary();
+}
+
+function renderPlotInfo() {
+  const infoEl = document.getElementById('plotInfo');
+  const actEl = document.getElementById('quickActions');
+  const btnsEl = document.getElementById('actionButtons');
+
+  if (!selectedPlot) {
+    infoEl.textContent = 'Chọn một ô đất để xem thông tin';
+    actEl.style.display = 'none';
+    return;
+  }
+
+  const plot = G.plots[selectedPlot];
+  if (plot.locked) {
+    infoEl.innerHTML = '<span class="text-red-400">🔒 Ô đất bị khóa</span>';
+    actEl.style.display = 'none';
+    return;
+  }
+
+  const up = G.plants[selectedPlot];
+  if (!up) {
+    infoEl.innerHTML = `<div class="text-gray-400">🟫 Ô trống</div>
+      <div class="text-xs text-gray-500 mt-1">Ô ${parseInt(selectedPlot.split('_')[1])+1}</div>`;
+    btnsEl.innerHTML = `<button class="btn btn-green w-full" onclick="openPlantModal('${selectedPlot}')">🌱 Trồng cây</button>`;
+    actEl.style.display = '';
+    return;
+  }
+
+  const plant = PLANTS_DATA[up.plant_id];
+  const waterPct = Math.round(up.current_water);
+  const grossY = calcGrossYield(up, plant);
+  const netY = calcNetYield(up);
+  const statusText = up.status === 0 ? '<span class="text-green-400">🌱 Sinh trưởng</span>'
+    : up.status === 1 ? '<span class="text-yellow-400">✨ Sẵn sàng thu hoạch</span>'
+    : '<span class="text-red-400">💀 Đã chết</span>';
+  const wrongSeason = up.is_wrong_season ? '<span class="text-red-400 text-xs">(⚠️ trái mùa -50%)</span>' : '';
+
+  // Time info
+  const now = Date.now();
+  const totalMs = now - up.planted_at;
+  const growthMs = plant.growth_time * 60000;
+  let timeInfo = '';
+  if (up.status === 0) {
+    const remaining = Math.max(0, growthMs - totalMs);
+    timeInfo = `⏱️ Còn ${formatTime(remaining)}`;
+  } else if (up.status === 1) {
+    const rotMs = plant.rot_time * 60000;
+    const overMs = totalMs - growthMs;
+    const remaining = Math.max(0, rotMs - overMs);
+    timeInfo = `<span class="text-yellow-400">⚠️ Héo sau ${formatTime(remaining)}</span>`;
+  }
+
+  infoEl.innerHTML = `
+    <div class="font-bold text-yellow-400 text-base">${plant.emoji} ${plant.name}</div>
+    <div class="mt-1">${statusText} ${wrongSeason}</div>
+    ${timeInfo ? `<div class="text-xs mt-1">${timeInfo}</div>` : ''}
+    <div class="mt-2 space-y-1 text-xs">
+      <div>💧 Nước: <span class="${waterPct<=20?'text-red-400':waterPct<=50?'text-yellow-400':'text-blue-400'}">${waterPct}%</span></div>
+      <div>🌾 Sản lượng: <span class="text-green-400">${netY}</span><span class="text-gray-500">/${Math.round(grossY)}</span></div>
+      ${up.bug_started_at ? '<div class="text-red-400">🐛 Đang có sâu!</div>' : ''}
+      ${up.pesticide_until && up.pesticide_until > now ? '<div class="text-green-400">🛡️ Thuốc còn hiệu lực</div>' : ''}
+      <div>🌱 Phân: ${FERTILIZER_DATA[up.fertilizer_type]?.name || 'Không có'}</div>
+    </div>
+  `;
+
+  // Action buttons
+  let btnHtml = '';
+  if (up.status === 2) {
+    btnHtml = `<button class="btn btn-gray w-full" onclick="handleRemoveDead('${selectedPlot}')">🗑️ Dọn cây chết</button>`;
+  } else {
+    if (up.status === 1) {
+      btnHtml += `<button class="btn btn-yellow w-full" onclick="handleHarvest('${selectedPlot}')">🌾 Thu hoạch</button>`;
+    }
+    if (waterPct <= 50) {
+      btnHtml += `<button class="btn btn-blue w-full" onclick="handleWater('${selectedPlot}')">💧 Tưới nước</button>`;
+    } else {
+      btnHtml += `<button class="btn btn-gray w-full" style="cursor:not-allowed;opacity:.5" title="Nước > 50%, chưa cần tưới">💧 Tưới nước</button>`;
+    }
+    if (hasFertilizerUpgrade(up)) {
+      btnHtml += `<button class="btn btn-green w-full" onclick="openFertilizerModal('${selectedPlot}')">🌿 Bón phân</button>`;
+    }
+    if (up.bug_started_at) {
+      btnHtml += `<button class="btn btn-green w-full" onclick="handleCatchBug('${selectedPlot}')">👋 Bắt sâu thủ công</button>`;
+      if (G.inventory['pesticide'] > 0) {
+        btnHtml += `<button class="btn btn-purple w-full" onclick="handlePesticide('${selectedPlot}')">🧪 Phun thuốc (${G.inventory['pesticide']})</button>`;
+      }
+    }
+  }
+  btnsEl.innerHTML = btnHtml;
+  actEl.style.display = '';
+}
+
+function renderFarmSummary() {
+  const plants = Object.values(G.plants);
+  const growing = plants.filter(p=>p.status===0).length;
+  const ready = plants.filter(p=>p.status===1).length;
+  const dead = plants.filter(p=>p.status===2).length;
+  const bugs = plants.filter(p=>p.bug_started_at).length;
+  document.getElementById('farmSummary').innerHTML = `
+    <div class="flex justify-between"><span class="text-gray-400">🌱 Đang trồng</span><span>${growing}</span></div>
+    <div class="flex justify-between"><span class="text-gray-400">✨ Có thể thu</span><span class="text-yellow-400">${ready}</span></div>
+    <div class="flex justify-between"><span class="text-gray-400">💀 Đã chết</span><span class="text-red-400">${dead}</span></div>
+    <div class="flex justify-between"><span class="text-gray-400">🐛 Đang có sâu</span><span class="text-red-400">${bugs}</span></div>
+  `;
+}
+
+// ============================================================
+// PLANT MODAL
+// ============================================================
+function openPlantModal(plotKey) {
+  plantingPlotKey = plotKey;
+  selectedPlantId = null;
+  selectedFert = 0;
+  const modal = document.getElementById('plantModal');
+  const content = document.getElementById('plantModalContent');
+
+  const mySeeds = Object.keys(G.inventory).filter(k => PLANTS_DATA[k] && G.inventory[k] > 0);
+
+  if (mySeeds.length === 0) {
+    content.innerHTML = `<div class="text-center py-8 text-gray-400">
+      <div class="text-4xl mb-3">😢</div>
+      <div>Bạn không có hạt giống nào!</div>
+      <div class="text-sm mt-2">Hãy mua hạt giống ở tiệm tạp hóa</div>
+      <button class="btn btn-yellow mt-4" onclick="closePlantModal();openShop()">🏪 Đến tiệm</button>
+    </div>`;
+    modal.style.display = 'flex';
+    return;
+  }
+
+  renderPlantModalContent(mySeeds);
+  modal.style.display = 'flex';
+}
+
+function renderPlantModalContent(mySeeds) {
+  mySeeds = mySeeds || Object.keys(G.inventory).filter(k => PLANTS_DATA[k] && G.inventory[k] > 0);
+  const content = document.getElementById('plantModalContent');
+
+  // My fertilizers
+  const myFerts = [0,1,2,3].filter(f => f===0 || (G.inventory[`fertilizer_${f}`]>0));
+
+  content.innerHTML = `
+    <div class="mb-3 text-sm text-gray-400">🌾 Chọn cây để trồng (mùa hiện tại: <span class="text-yellow-400">${SEASON_LABELS[G.season]}</span>)</div>
+    <div class="grid grid-cols-2 gap-2 mb-4" id="seedPicker">
+      ${mySeeds.map(pid => {
+        const p = PLANTS_DATA[pid];
+        const wrong = p.season !== G.season;
+        return `<div class="plant-card ${wrong?'wrong-season':''}" id="seed_${pid}" onclick="selectSeed('${pid}')">
+          <div class="flex items-center gap-2">
+            <span class="text-2xl">${p.emoji}</span>
+            <div>
+              <div class="font-bold text-sm">${p.name}</div>
+              <div class="text-xs text-gray-400">${SEASON_LABELS[p.season]} · x${G.inventory[pid]}</div>
+            </div>
+          </div>
+          <div class="mt-1 text-xs text-gray-500 flex gap-3">
+            <span>⏱️${p.growth_time}ph</span>
+            <span>🌾${p.base_yield}</span>
+            <span>💧-${p.water_consume_per_hour}%/h</span>
+          </div>
+          ${wrong?'<div class="text-xs text-red-400 mt-1">⚠️ Trái mùa: -50% sản lượng</div>':''}
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="mb-4">
+      <div class="text-sm text-gray-400 mb-2">🌿 Phân bón (tùy chọn)</div>
+      <div class="flex gap-2 flex-wrap" id="fertPicker">
+        ${myFerts.map(f => {
+          const fd = FERTILIZER_DATA[f];
+          return `<button class="px-3 py-1 rounded-lg border text-sm font-bold transition fert-btn ${f===0?'border-yellow-400 bg-yellow-400 bg-opacity-10':' border-gray-600'}"
+            id="fert_${f}" onclick="selectFert(${f})">
+            ${f===0?'Không':''}${f>0?fd.emoji:''} ${fd.name} ${f>0?`(x${G.inventory['fertilizer_'+f]})`:''}</button>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <button class="btn btn-green w-full text-base" onclick="confirmPlant()">🌱 Gieo hạt</button>
+  `;
+}
+
+function selectSeed(pid) {
+  selectedPlantId = pid;
+  document.querySelectorAll('.plant-card').forEach(el => el.classList.remove('selected'));
+  const el = document.getElementById(`seed_${pid}`);
+  if (el) el.classList.add('selected');
+}
+
+function selectFert(f) {
+  selectedFert = f;
+  document.querySelectorAll('.fert-btn').forEach(el => {
+    el.classList.remove('border-yellow-400','bg-yellow-400','bg-opacity-10');
+    el.classList.add('border-gray-600');
+  });
+  const el = document.getElementById(`fert_${f}`);
+  if (el) { el.classList.add('border-yellow-400','bg-yellow-400','bg-opacity-10'); el.classList.remove('border-gray-600'); }
+}
+
+function confirmPlant() {
+  if (!selectedPlantId) { toast('Chọn hạt giống trước!', 'error'); return; }
+  const result = plantSeed(plantingPlotKey, selectedPlantId, selectedFert);
+  if (!result.ok) { toast(result.msg, 'error'); return; }
+  closePlantModal();
+  render();
+  toast(`🌱 Đã gieo ${PLANTS_DATA[selectedPlantId].name}!`, 'success');
+}
+
+function closePlantModal() {
+  document.getElementById('plantModal').style.display = 'none';
+}
+
+// ============================================================
+// PLOT ACTIONS
+// ============================================================
+function selectPlot(key) {
+  selectedPlot = key;
+  renderGrid();
+  renderSidebar();
+}
+
+function handleWater(key) {
+  const res = waterPlant(key);
+  if (!res.ok) { toast(res.msg, 'error'); return; }
+  render(); toast('💧 Đã tưới nước!', 'success');
+}
+function handleCatchBug(key) {
+  const res = catchBug(key);
+  if (!res.ok) { toast(res.msg, 'error'); return; }
+  render(); toast('👋 Đã bắt sâu!', 'success');
+}
+function handlePesticide(key) {
+  const res = usePesticide(key);
+  if (!res.ok) { toast(res.msg, 'error'); return; }
+  render(); toast('🧪 Đã phun thuốc! (hiệu lực 24h)', 'success');
+}
+function hasFertilizerUpgrade(up) {
+  const current = up.fertilizer_type || 0;
+  return [1,2,3].some(type => type > current && G.inventory[`fertilizer_${type}`] > 0);
+}
+function openFertilizerModal(plotKey) {
+  fertilizePlotKey = plotKey;
+  selectedFertilizerType = 0;
+  renderFertilizerModalContent();
+  document.getElementById('fertilizerModal').style.display = 'flex';
+}
+function closeFertilizerModal() {
+  document.getElementById('fertilizerModal').style.display = 'none';
+}
+function renderFertilizerModalContent() {
+  const content = document.getElementById('fertilizerModalContent');
+  if (!fertilizePlotKey || !G.plants[fertilizePlotKey]) {
+    content.innerHTML = `<div class="text-center py-8 text-gray-400">Không có cây để bón phân.</div>`;
+    return;
+  }
+  const up = G.plants[fertilizePlotKey];
+  const currentType = up.fertilizer_type || 0;
+  const available = [1,2,3].filter(type => type > currentType && G.inventory[`fertilizer_${type}`] > 0);
+  if (available.length === 0) {
+    content.innerHTML = `<div class="text-center py-8 text-gray-400">Không có phân bón phù hợp hoặc cây đã dùng phân tốt nhất.</div>`;
+    return;
+  }
+
+  content.innerHTML = `
+    <div class="mb-3 text-sm text-gray-400">Chọn phân bón để áp dụng cho cây hiện tại.</div>
+    <div class="grid grid-cols-1 gap-2 mb-4" id="fertilizerPicker">
+      ${available.map(type => {
+        const fd = FERTILIZER_DATA[type];
+        return `<button class="fert-option-btn w-full text-left rounded-lg border px-3 py-3 ${selectedFertilizerType===type?'border-yellow-400 bg-yellow-400 bg-opacity-10':'border-gray-600'}" onclick="selectFertilizerType(${type})">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="font-bold">${fd.emoji} ${fd.name}</div>
+              <div class="text-xs text-gray-400">Hiệu quả +${Math.round((fd.multiplier-1)*100)}%</div>
+            </div>
+            <div class="text-sm text-yellow-400">x${G.inventory[`fertilizer_${type}`] || 0}</div>
+          </div>
+        </button>`;
+      }).join('')}
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-green w-full" onclick="confirmFertilizer()" ${selectedFertilizerType ? '' : 'disabled'} style="${selectedFertilizerType ? '' : 'opacity:.5;cursor:not-allowed;'}">🌿 Áp dụng</button>
+      <button class="btn btn-gray w-full" onclick="closeFertilizerModal()">Hủy</button>
+    </div>
+  `;
+}
+function selectFertilizerType(type) {
+  selectedFertilizerType = type;
+  renderFertilizerModalContent();
+}
+function confirmFertilizer() {
+  if (!selectedFertilizerType) { toast('Chọn loại phân trước!', 'error'); return; }
+  const res = useFertilizer(fertilizePlotKey, selectedFertilizerType);
+  if (!res.ok) { toast(res.msg, 'error'); return; }
+  closeFertilizerModal();
+  render();
+  toast(`🌿 Đã bón ${FERTILIZER_DATA[selectedFertilizerType].name}!`, 'success');
+}
+function handleHarvest(key) {
+  const res = harvestPlant(key);
+  if (res.ok) {
+    selectedPlot = null;
+    render();
+    toast(`🌾 Thu hoạch ${res.qty} ${res.plant.name}! (+${res.qty * res.plant.sell_price_per_yield}🪙 nếu bán)`, 'success');
+  } else {
+    render(); toast(res.msg, 'error');
+  }
+}
+function handleRemoveDead(key) {
+  removeDead(key);
+  selectedPlot = null;
+  render(); toast('🗑️ Đã dọn cây chết', 'info');
+}
+function handleBuyLand() {
+  const res = buyLand(currentZone);
+  if (!res.ok) { toast(res.msg, 'error'); return; }
+  render(); toast(`🏗️ Đã mở thêm 3 ô đất! (-${res.price}🪙)`, 'success');
+}
+
+// ============================================================
+// SHOP
+// ============================================================
+function openShop() {
+  document.getElementById('shopModal').style.display = 'flex';
+  showShopTab('buy');
+}
+function closeShop() {
+  document.getElementById('shopModal').style.display = 'none';
+}
+function showShopTab(tab) {
+  shopTab = tab;
+  document.querySelectorAll('.shop-tab').forEach(el => {
+    el.classList.remove('active','text-yellow-400','border-b-2','border-yellow-400');
+    el.classList.add('text-gray-400');
+  });
+  const activeTab = document.getElementById(tab === 'buy' ? 'tabBuy' : 'tabSell');
+  activeTab.classList.add('active','text-yellow-400','border-b-2','border-yellow-400');
+  activeTab.classList.remove('text-gray-400');
+  renderShopContent();
+}
+function renderShopContent() {
+  updateGold();
+  const el = document.getElementById('shopContent');
+  if (shopTab === 'buy') {
+    el.innerHTML = renderBuyTab();
+  } else {
+    el.innerHTML = renderSellTab();
+  }
+}
+
+function renderBuyTab() {
+  let html = '';
+  // Seeds by season
+  SEASONS.forEach(s => {
+    html += `<div class="mb-4"><div class="text-xs font-bold text-gray-400 uppercase mb-2">${SEASON_LABELS[s]}</div>
+    <table><thead><tr><th>Cây</th><th>Giá mua</th><th>Giá bán/sp</th><th>SL gốc</th><th>Mùa</th><th></th></tr></thead><tbody>`;
+    Object.values(PLANTS_DATA).filter(p=>p.season===s).forEach(p => {
+      const wrong = p.season !== G.season;
+      html += `<tr>
+        <td>${p.emoji} ${p.name}</td>
+        <td class="text-yellow-400">${p.buy_price}🪙</td>
+        <td class="text-green-400">${p.sell_price_per_yield}🪙</td>
+        <td>${p.base_yield}</td>
+        <td>${wrong?'<span class="text-red-400 text-xs">⚠️ Trái mùa</span>':'<span class="text-green-400 text-xs">✅ Đúng mùa</span>'}</td>
+        <td><div class="flex gap-1">
+          <button class="btn btn-green text-xs px-2 py-1" onclick="shopBuy('seed','${p.id}',1)">x1</button>
+          <button class="btn btn-green text-xs px-2 py-1" onclick="shopBuy('seed','${p.id}',5)">x5</button>
+        </div></td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+  });
+
+  // Fertilizers
+  html += `<div class="mb-4"><div class="text-xs font-bold text-gray-400 uppercase mb-2">🌿 Phân Bón</div>
+  <table><thead><tr><th>Loại</th><th>Giá</th><th>Hiệu quả</th><th></th></tr></thead><tbody>`;
+  [1,2,3].forEach(f => {
+    const fd = FERTILIZER_DATA[f];
+    html += `<tr><td>${fd.emoji} ${fd.name}</td><td class="text-yellow-400">${fd.price}🪙</td>
+      <td class="text-green-400">+${Math.round((fd.multiplier-1)*100)}% sản lượng</td>
+      <td><div class="flex gap-1">
+        <button class="btn btn-green text-xs px-2 py-1" onclick="shopBuy('fertilizer','${f}',1)">x1</button>
+        <button class="btn btn-green text-xs px-2 py-1" onclick="shopBuy('fertilizer','${f}',3)">x3</button>
+      </div></td></tr>`;
+  });
+  html += '</tbody></table></div>';
+
+  // Pesticide
+  html += `<div><div class="text-xs font-bold text-gray-400 uppercase mb-2">🧪 Thuốc Trừ Sâu</div>
+  <table><thead><tr><th>Vật phẩm</th><th>Giá</th><th>Hiệu quả</th><th></th></tr></thead><tbody>
+  <tr><td>🧪 Thuốc trừ sâu</td><td class="text-yellow-400">${PESTICIDE_PRICE}🪙</td>
+    <td class="text-green-400">Diệt sâu + bảo vệ 24h</td>
+    <td><div class="flex gap-1">
+      <button class="btn btn-green text-xs px-2 py-1" onclick="shopBuy('pesticide','',1)">x1</button>
+      <button class="btn btn-green text-xs px-2 py-1" onclick="shopBuy('pesticide','',5)">x5</button>
+    </div></td></tr>
+  </tbody></table></div>`;
+
+  return html;
+}
+
+function renderSellTab() {
+  const inv = G.inventory;
+  const items = Object.keys(inv).filter(k => inv[k] > 0);
+  if (items.length === 0) {
+    return `<div class="text-center py-8 text-gray-400"><div class="text-4xl mb-2">🎒</div>Túi trống, không có gì để bán</div>`;
+  }
+
+  let html = `<table><thead><tr><th>Vật phẩm</th><th>Số lượng</th><th>Giá bán</th><th></th></tr></thead><tbody>`;
+  items.forEach(k => {
+    let name = k, price = 0, emoji = '📦';
+    if (k.startsWith('harvest_')) {
+      const p = PLANTS_DATA[k.replace('harvest_','')];
+      if (p) { name = p.name + ' (nông sản)'; price = p.sell_price_per_yield; emoji = p.emoji; }
+    } else if (k.startsWith('fertilizer_')) {
+      const f = parseInt(k.replace('fertilizer_',''));
+      const fd = FERTILIZER_DATA[f];
+      if (fd) { name = fd.name; price = Math.floor(fd.price*0.5); emoji = fd.emoji; }
+    } else if (k === 'pesticide') {
+      name = 'Thuốc trừ sâu'; price = Math.floor(PESTICIDE_PRICE*0.5); emoji = '🧪';
+    } else if (PLANTS_DATA[k]) {
+      const p = PLANTS_DATA[k];
+      name = p.name + ' (hạt giống)'; price = Math.floor(p.buy_price*0.5); emoji = p.emoji;
+    }
+    html += `<tr>
+      <td>${emoji} ${name}</td>
+      <td>x${inv[k]}</td>
+      <td class="text-yellow-400">${price}🪙/cái</td>
+      <td><div class="flex gap-1">
+        <button class="btn btn-yellow text-xs px-2 py-1" onclick="shopSell('${k}',1)">Bán 1</button>
+        <button class="btn btn-yellow text-xs px-2 py-1" onclick="shopSell('${k}',${inv[k]})">Bán hết</button>
+      </div></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  return html;
+}
+
+function shopBuy(type, id, qty) {
+  const res = buyItem(type, id, qty);
+  if (!res.ok) { toast(res.msg, 'error'); return; }
+  updateGold();
+  renderShopContent();
+  toast(`✅ Đã mua (${res.cost}🪙)`, 'success');
+}
+function shopSell(key, qty) {
+  const res = sellItem(key, qty);
+  if (!res.ok) { toast(res.msg, 'error'); return; }
+  updateGold();
+  renderShopContent();
+  toast(`💰 Bán được ${res.revenue}🪙!`, 'success');
+}
+
+// ============================================================
+// INVENTORY MODAL
+// ============================================================
+function openInventory() {
+  document.getElementById('inventoryModal').style.display = 'flex';
+  renderInventoryContent();
+}
+function closeInventory() {
+  document.getElementById('inventoryModal').style.display = 'none';
+}
+function renderInventoryContent() {
+  const inv = G.inventory;
+  const items = Object.keys(inv).filter(k => inv[k] > 0);
+  const el = document.getElementById('inventoryContent');
+  if (items.length === 0) {
+    el.innerHTML = `<div class="text-center py-8 text-gray-400"><div class="text-4xl mb-2">🎒</div>Túi trống</div>`;
+    return;
+  }
+  let html = `<table><thead><tr><th>Vật phẩm</th><th>Số lượng</th><th>Loại</th></tr></thead><tbody>`;
+  items.forEach(k => {
+    let name=k, emoji='📦', type='Khác';
+    if (k.startsWith('harvest_')) {
+      const p=PLANTS_DATA[k.replace('harvest_','')];
+      if(p){name=p.name;emoji=p.emoji;type='Nông sản';}
+    } else if (k.startsWith('fertilizer_')) {
+      const f=parseInt(k.replace('fertilizer_',''));
+      const fd=FERTILIZER_DATA[f];
+      if(fd){name=fd.name;emoji=fd.emoji;type='Phân bón';}
+    } else if (k==='pesticide') {
+      name='Thuốc trừ sâu';emoji='🧪';type='Vật phẩm';
+    } else if (PLANTS_DATA[k]) {
+      const p=PLANTS_DATA[k];name=p.name;emoji=p.emoji;type='Hạt giống';
+    }
+    html += `<tr><td>${emoji} ${name}</td><td class="text-yellow-400 font-bold">x${inv[k]}</td><td class="text-gray-400 text-xs">${type}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function formatTime(ms) {
+  if (ms <= 0) return '0ph';
+  const m = Math.floor(ms / 60000);
+  if (m < 60) return `${m}ph`;
+  return `${Math.floor(m/60)}h${m%60}ph`;
+}
+
+let toastTimer = {};
+function toast(msg, type='info') {
+  const container = document.getElementById('toast');
+  const id = Date.now();
+  const el = document.createElement('div');
+  el.className = `toast-item ${type}`;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+function confirmResetGame() {
+  if (!confirm('Bạn có muốn reset game? Mọi thứ sẽ được bắt đầu lại.')) return;
+  resetGame();
+  render();
+  toast('🔄 Game đã được reset về đầu', 'success');
+}
+
+function openStartSeasonModal() {
+  document.getElementById('startSeasonModal').style.display = 'flex';
+  renderStartSeasonContent();
+}
+
+function closeStartSeasonModal() {
+  document.getElementById('startSeasonModal').style.display = 'none';
+}
+
+function renderStartSeasonContent() {
+  const content = document.getElementById('startSeasonContent');
+  content.innerHTML = `
+    <div class="mb-3 text-sm text-gray-400">Chọn mùa bắt đầu cho nông trại.</div>
+    <div class="grid grid-cols-2 gap-2 mb-4">
+      ${SEASONS.map(season => {
+        const label = SEASON_LABELS[season];
+        return `<button class="btn btn-yellow w-full text-sm" onclick="setStartSeason('${season}')">${label}</button>`;
+      }).join('')}
+    </div>
+    <div class="text-xs text-gray-500">Mỗi mùa kéo dài 30 ngày. Lịch game sẽ tự động chạy và chuyển mùa khi đủ ngày.</div>
+  `;
+}
+
+function updateSeasonDisplay() {
+  const select = document.getElementById('seasonSelect');
+  if (select) select.value = G.season;
+}
+
+function updateDayDisplay() {
+  const el = document.getElementById('dayDisplay');
+  if (!el) return;
+  el.textContent = `${getDayOfSeason(G.game_day)}/30`;
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', (e) => {
+    if (e.target === el) el.style.display = 'none';
+  });
+});
+</script>
+</body>
+</html>
