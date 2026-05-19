@@ -62,8 +62,6 @@ function render() {
 
 function updateGold() {
   document.getElementById('goldDisplay').textContent = G.gold.toLocaleString('vi');
-  const shopGold = document.getElementById('shopGold');
-  if (shopGold) shopGold.textContent = G.gold.toLocaleString('vi');
 }
 
 function renderZoneTabs() {
@@ -119,9 +117,14 @@ function renderGrid() {
 
     html += `<div class="plot-cell ${statusClass} ${bugClass} ${isSelected?'ring-2 ring-yellow-400':''}"
       onclick="selectPlot('${key}')" title="${plant.name}">
-      <span style="font-size:20px">${mainEmoji}</span>
-      <span>${statusEmoji}${hasBug?'🐛':''}</span>
-      <div class="water-bar"><div class="water-fill" style="width:${waterPct}%"></div></div>
+      
+      <div class="flex-1 flex items-center justify-center w-full">
+        <span style="font-size:24px; line-height:1; display:block;">${mainEmoji}</span>
+      </div>
+
+      ${(statusEmoji || hasBug) ? `<div class="absolute -top-1 -right-1 text-[12px] bg-gray-900 rounded-full px-1 border border-gray-700 shadow-lg z-10">${statusEmoji}${hasBug?'🐛':''}</div>` : ''}
+      
+      <div class="water-bar mb-1" style="width:80%"><div class="water-fill" style="width:${waterPct}%"></div></div>
     </div>`;
   }
   grid.innerHTML = html;
@@ -473,13 +476,6 @@ function handleBuyLand() {
 // ============================================================
 // SHOP
 // ============================================================
-function openShop() {
-  document.getElementById('shopModal').style.display = 'flex';
-  showShopTab('buy');
-}
-function closeShop() {
-  document.getElementById('shopModal').style.display = 'none';
-}
 function showShopTab(tab) {
   shopTab = tab;
   document.querySelectorAll('.shop-tab').forEach(el => {
@@ -669,15 +665,10 @@ function shopSell(key, qty) {
 }
 
 // ============================================================
-// INVENTORY MODAL
+// INVENTORY
 // ============================================================
-function openInventory() {
-  document.getElementById('inventoryModal').style.display = 'flex';
-  renderInventoryContent();
-}
-function closeInventory() {
-  document.getElementById('inventoryModal').style.display = 'none';
-}
+let selectedInventoryItem = null;
+
 function renderInventoryContent() {
   const inv = G.inventory;
   const items = Object.keys(inv).filter(k => inv[k] > 0);
@@ -686,7 +677,13 @@ function renderInventoryContent() {
     el.innerHTML = `<div class="text-center py-8 text-gray-400"><div class="text-4xl mb-2">🎒</div>Túi trống</div>`;
     return;
   }
-  let html = `<table><thead><tr><th>Vật phẩm</th><th>Số lượng</th><th>Loại</th></tr></thead><tbody>`;
+  
+  if (!selectedInventoryItem || !inv[selectedInventoryItem]) {
+    selectedInventoryItem = items[0];
+  }
+
+  // Left column: grid of items
+  let gridHtml = `<div class="w-full md:w-3/5 grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 content-start pr-2 overflow-y-auto" style="max-height: 50vh;">`;
   items.forEach(k => {
     let name=k, emoji='📦', type='Khác';
     if (k.startsWith('harvest_')) {
@@ -701,10 +698,55 @@ function renderInventoryContent() {
     } else if (PLANTS_DATA[k]) {
       const p=PLANTS_DATA[k];name=p.name;emoji=p.emoji;type='Hạt giống';
     }
-    html += `<tr><td>${emoji} ${name}</td><td class="text-yellow-400 font-bold">x${inv[k]}</td><td class="text-gray-400 text-xs">${type}</td></tr>`;
+    
+    const isSelected = selectedInventoryItem === k;
+    gridHtml += `
+      <div class="relative flex flex-col items-center justify-center p-2 rounded-lg cursor-pointer border-2 transition-all ${isSelected ? 'border-yellow-400 bg-yellow-900 bg-opacity-30' : 'border-gray-700 bg-gray-800 hover:border-gray-500'}" style="aspect-ratio: 1;" onclick="selectInventoryItem('${k}')" title="${name}">
+        <span style="font-size: 28px;">${emoji}</span>
+        <span class="absolute bottom-1 right-1 text-[10px] font-bold text-yellow-400 bg-gray-900 px-1 rounded shadow">x${inv[k]}</span>
+      </div>
+    `;
   });
-  html += '</tbody></table>';
-  el.innerHTML = html;
+  gridHtml += `</div>`;
+
+  // Right column: details
+  let detailHtml = `<div class="w-full md:w-2/5 mt-4 md:mt-0 md:pl-4 border-t md:border-t-0 md:border-l border-gray-700 flex flex-col gap-4 pt-4 md:pt-0">`;
+  const k = selectedInventoryItem;
+  if (k) {
+    let name=k, emoji='📦', type='Khác', desc='';
+    if (k.startsWith('harvest_')) {
+      const p=PLANTS_DATA[k.replace('harvest_','')];
+      if(p){name=p.name;emoji=p.emoji;type='Nông sản';desc=`Giá bán: <span class="text-yellow-400">${p.sell_price_per_yield}🪙/cái</span>`;}
+    } else if (k.startsWith('fertilizer_')) {
+      const f=parseInt(k.replace('fertilizer_',''));
+      const fd=FERTILIZER_DATA[f];
+      if(fd){name=fd.name;emoji=fd.emoji;type='Phân bón';desc=`Giúp tăng <span class="text-green-400">${Math.round((fd.multiplier-1)*100)}% SL</span> và giảm <span class="text-blue-400">${Math.round((1-fd.time_multiplier)*100)}% thời gian</span> sinh trưởng của cây.`;}
+    } else if (k==='pesticide') {
+      name='Thuốc trừ sâu';emoji='🧪';type='Vật phẩm';desc=`Diệt sâu bọ ngay lập tức và bảo vệ cây khỏi sâu bệnh trong vòng <span class="text-blue-400">24 giờ</span>.`;
+    } else if (PLANTS_DATA[k]) {
+      const p=PLANTS_DATA[k];name=p.name;emoji=p.emoji;type='Hạt giống';desc=`Mùa thích hợp: <span class="text-yellow-400">${SEASON_LABELS[p.season]}</span><br>Thời gian sinh trưởng: <span class="text-blue-400">${formatTime(p.growth_time*60000)}</span><br>Sản lượng gốc: <span class="text-green-400">${p.base_yield}</span>`;
+    }
+
+    detailHtml += `
+      <div class="text-center">
+        <div class="text-6xl mb-2">${emoji}</div>
+        <div class="text-xl font-bold text-yellow-400">${name}</div>
+        <div class="text-sm text-gray-400">Loại: ${type}</div>
+        <div class="text-sm text-yellow-400 font-bold mt-1">Đang có: x${inv[k]}</div>
+      </div>
+      <div class="bg-gray-800 p-3 rounded text-sm text-gray-300 mt-2 leading-relaxed">
+        ${desc}
+      </div>
+    `;
+  }
+  detailHtml += `</div>`;
+
+  el.innerHTML = `<div class="flex flex-col md:flex-row w-full">${gridHtml}${detailHtml}</div>`;
+}
+
+function selectInventoryItem(k) {
+  selectedInventoryItem = k;
+  renderInventoryContent();
 }
 
 // ============================================================
@@ -841,12 +883,24 @@ document.querySelectorAll('.modal-overlay').forEach(el => {
   });
 });
 
-function toggleMobileMenu() {
-  if (window.innerWidth >= 1024) return;
-  const menu = document.getElementById('navMenu');
-  const overlay = document.getElementById('navOverlay');
-  if (menu && overlay) {
-    menu.classList.toggle('translate-x-full');
-    overlay.classList.toggle('hidden');
+function switchView(viewId) {
+  document.querySelectorAll('.app-view').forEach(el => el.classList.add('hidden'));
+  document.getElementById(viewId).classList.remove('hidden');
+  
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.classList.remove('text-yellow-400');
+    btn.classList.add('text-gray-400');
+  });
+  const activeBtn = document.getElementById('nav-' + viewId);
+  if (activeBtn) {
+    activeBtn.classList.add('text-yellow-400');
+    activeBtn.classList.remove('text-gray-400');
+  }
+
+  if (viewId === 'viewShop') {
+    if (typeof shopTab === 'undefined' || !shopTab) showShopTab('buy');
+    else renderShopContent();
+  } else if (viewId === 'viewInventory') {
+    renderInventoryContent();
   }
 }

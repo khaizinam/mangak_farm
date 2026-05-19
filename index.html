@@ -2,157 +2,157 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>🌾 MangaK Farm</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="style.css?v=1.0.0">
+<style>
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #1a1a2e; }
+  ::-webkit-scrollbar-thumb { background: #4a4e69; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #f4c842; }
+  #toast { bottom: 80px; } /* Phía trên bottom navbar */
+</style>
 </head>
-<body class="min-h-screen text-white">
+<body class="min-h-screen text-white bg-gray-900 pb-16">
 
 <!-- TOP BAR -->
 <header class="sticky top-0 z-30" style="background:#0f3460; border-bottom:2px solid #F4C842;">
-  <div class="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between gap-3">
-    <div class="flex items-center gap-3 min-w-0">
-      <span class="pixel text-2xl text-yellow-400">🌾 MangaK Farm</span>
+  <div class="max-w-7xl mx-auto px-2 py-2 flex items-center justify-between gap-1 overflow-x-auto">
+    <div class="flex items-center gap-1 min-w-0">
+      <span class="pixel text-xl md:text-2xl text-yellow-400 whitespace-nowrap">🌾 MangaK</span>
     </div>
 
-    <!-- Mobile Toggle Button -->
-    <button class="lg:hidden text-2xl text-yellow-400 focus:outline-none" onclick="toggleMobileMenu()">☰</button>
+    <!-- SEASON & TIME -->
+    <div class="flex items-center gap-2 text-xs md:text-sm whitespace-nowrap">
+      <span class="text-gray-400 hidden sm:inline">Mùa:</span>
+      <select id="seasonSelect" disabled class="bg-transparent text-yellow-400 font-bold appearance-none outline-none">
+        <option value="spring">🌸 Xuân</option>
+        <option value="summer">☀️ Hạ</option>
+        <option value="autumn">🍂 Thu</option>
+        <option value="winter">❄️ Đông</option>
+      </select>
+      <span class="text-gray-400 border-l border-gray-600 pl-2">Ngày:</span>
+      <span class="font-bold text-yellow-400" id="dayDisplay">1/30</span>
+      <span class="text-gray-400 border-l border-gray-600 pl-2">🕒</span>
+      <span class="font-bold text-white font-mono" id="gameClockDisplay">00:00</span>
+    </div>
 
-    <!-- Mobile Overlay -->
-    <div id="navOverlay" class="fixed inset-0 bg-black bg-opacity-60 z-40 hidden lg:hidden" onclick="toggleMobileMenu()"></div>
-
-    <!-- Desktop Menu / Mobile Sidebar -->
-    <div id="navMenu" class="fixed inset-y-0 right-0 transform translate-x-full lg:relative lg:transform-none lg:translate-x-0 transition-transform duration-300 ease-in-out bg-gray-900 lg:bg-transparent w-64 lg:w-auto p-4 lg:p-0 z-50 lg:z-auto flex flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-2 border-l border-gray-700 lg:border-0 shadow-2xl lg:shadow-none h-full lg:h-auto overflow-y-auto lg:overflow-visible">
-      
-      <!-- Close Button (Mobile) -->
-      <button class="lg:hidden self-end text-2xl text-gray-400 hover:text-white mb-2 focus:outline-none" onclick="toggleMobileMenu()">✕</button>
-
-      <!-- SEASON -->
-      <div class="flex items-center gap-1 w-full lg:w-auto border-b border-gray-700 lg:border-0 pb-3 lg:pb-0">
-        <span class="text-xs text-gray-400">Mùa:</span>
-        <select id="seasonSelect" disabled title="Mùa tự động theo lịch game" class="bg-transparent border border-yellow-500 text-yellow-400 rounded px-2 py-1 text-sm font-bold cursor-not-allowed">
-          <option value="spring">🌸 Xuân</option>
-          <option value="summer">☀️ Hạ</option>
-          <option value="autumn">🍂 Thu</option>
-          <option value="winter">❄️ Đông</option>
-        </select>
-      </div>
-
-      <!-- DAY & CLOCK -->
-      <div class="flex items-center gap-2 w-full lg:w-auto border-b border-gray-700 lg:border-0 pb-3 lg:pb-0">
-        <div class="flex items-center gap-1">
-          <span class="text-xs text-gray-400">Ngày:</span>
-          <span class="text-sm font-bold text-yellow-400" id="dayDisplay">1/30</span>
-        </div>
-        <div class="flex items-center gap-1 border-l border-gray-600 pl-2">
-          <span class="text-xs text-gray-400">🕒</span>
-          <span class="text-sm font-bold text-white font-mono" id="gameClockDisplay">00:00</span>
-        </div>
-      </div>
-
-      <!-- GOLD -->
-      <div class="gold-bar rounded-full px-4 py-1 flex items-center gap-2 w-full lg:w-auto justify-center mb-2 lg:mb-0">
-        <span class="text-lg">🪙</span>
-        <span class="text-xl font-bold text-gray-900" id="goldDisplay">0</span>
-      </div>
-
-      <!-- BUTTONS -->
-      <button class="btn btn-yellow w-full lg:w-auto text-center" onclick="openShop(); toggleMobileMenu()">🏪 Tiệm tạp hóa</button>
-      <button class="btn btn-purple w-full lg:w-auto text-center" onclick="openInventory(); toggleMobileMenu()">🎒 Túi đồ</button>
-      <button class="btn btn-blue w-full lg:w-auto text-center" onclick="exportSave(); toggleMobileMenu()">💾 Xuất Data</button>
-      <button class="btn btn-red w-full lg:w-auto text-center mt-auto lg:mt-0" onclick="confirmResetGame(); toggleMobileMenu()">🔄 Chơi Mới</button>
+    <!-- GOLD -->
+    <div class="flex items-center gap-1 whitespace-nowrap ml-1 md:ml-auto pr-2">
+      <span class="text-sm">🪙</span>
+      <span class="font-bold text-yellow-400 text-sm md:text-base" id="goldDisplay">0</span>
     </div>
   </div>
 </header>
 
-<!-- MAIN -->
-<main class="max-w-7xl mx-auto px-4 py-4 flex flex-col lg:flex-row gap-4">
+<!-- MAIN CONTENT -->
+<main class="max-w-7xl mx-auto px-2 py-4">
 
-  <!-- FARM AREA -->
-  <div class="flex-1 min-w-0">
-    <!-- ZONE TABS -->
-    <div class="flex gap-1 mb-0" id="zoneTabs"></div>
+  <!-- VIEW: FARM -->
+  <div id="viewFarm" class="app-view flex flex-col lg:flex-row gap-4">
+    <!-- FARM AREA -->
+    <div class="flex-1 min-w-0">
+      <div class="flex gap-1 mb-0 overflow-x-auto" id="zoneTabs"></div>
+      <div style="background:#16213e; border:2px solid #2a3a5e; border-radius:0 12px 12px 12px;" class="p-4 md:p-6 overflow-x-auto">
+        <div id="farmGrid" class="grid gap-1 w-max mx-auto" style="grid-template-columns:repeat(6,52px); grid-template-rows:repeat(6,52px);"></div>
+        <div class="mt-4 flex items-center justify-center gap-3" id="buyLandArea">
+          <button class="btn btn-green text-sm" id="buyLandBtn" onclick="handleBuyLand()"></button>
+          <span class="text-xs text-gray-400" id="buyLandInfo"></span>
+        </div>
+      </div>
+    </div>
 
-    <!-- GRID AREA -->
-    <div style="background:#16213e; border:2px solid #2a3a5e; border-radius:0 12px 12px 12px; padding:16px;">
-      <div id="farmGrid" class="grid gap-1" style="grid-template-columns:repeat(6,52px); grid-template-rows:repeat(6,52px);"></div>
-
-      <!-- BUY LAND BUTTON -->
-      <div class="mt-3 flex items-center gap-3" id="buyLandArea">
-        <button class="btn btn-green text-sm" id="buyLandBtn" onclick="handleBuyLand()"></button>
-        <span class="text-xs text-gray-400" id="buyLandInfo"></span>
+    <!-- SIDEBAR -->
+    <div class="w-full lg:max-w-[280px] flex-shrink-0 flex flex-col gap-4">
+      <div class="sidebar-card" id="plotInfoCard">
+        <div class="text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">📋 Ô đất</div>
+        <div id="plotInfo" class="text-sm text-gray-300">Chọn một ô đất để xem thông tin</div>
+      </div>
+      <div class="sidebar-card" id="quickActions" style="display:none;">
+        <div class="text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">⚡ Hành động</div>
+        <div id="actionButtons" class="flex flex-col gap-2"></div>
+      </div>
+      <div class="sidebar-card">
+        <div class="text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">📊 Farm</div>
+        <div id="farmSummary" class="text-sm space-y-1"></div>
+      </div>
+      <div class="text-center">
+        <span class="text-xs text-gray-600" id="refreshStatus">🔄 Auto sync: đang chờ</span>
       </div>
     </div>
   </div>
 
-  <!-- SIDEBAR -->
-  <div style="width:100%; max-width:280px; flex-shrink:0;">
-    <!-- SELECTED PLOT INFO -->
-    <div class="sidebar-card" id="plotInfoCard">
-      <div class="text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">📋 Ô đất</div>
-      <div id="plotInfo" class="text-sm text-gray-300">Chọn một ô đất để xem thông tin</div>
-    </div>
-
-    <!-- QUICK ACTIONS -->
-    <div class="sidebar-card" id="quickActions" style="display:none;">
-      <div class="text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">⚡ Hành động</div>
-      <div id="actionButtons" class="flex flex-col gap-2"></div>
-    </div>
-
-    <!-- SUMMARY -->
-    <div class="sidebar-card">
-      <div class="text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">📊 Farm</div>
-      <div id="farmSummary" class="text-sm space-y-1"></div>
-    </div>
-
-    <!-- AUTO REFRESH indicator -->
-    <div class="text-center mt-2">
-      <span class="text-xs text-gray-600" id="refreshStatus">🔄 Auto sync: đang chờ</span>
+  <!-- VIEW: SHOP -->
+  <div id="viewShop" class="app-view hidden">
+    <div class="sidebar-card p-0 overflow-hidden max-w-4xl mx-auto">
+      <div class="p-4 border-b border-yellow-500 bg-gray-800">
+        <span class="pixel text-xl text-yellow-400">🏪 Tiệm Tạp Hóa</span>
+      </div>
+      <div class="flex border-b border-gray-700 bg-gray-900">
+        <button class="flex-1 py-3 text-sm font-bold shop-tab active" onclick="showShopTab('buy')" id="tabBuy">🛒 Mua</button>
+        <button class="flex-1 py-3 text-sm font-bold shop-tab" onclick="showShopTab('sell')" id="tabSell">💰 Bán</button>
+      </div>
+      <div id="shopContent" class="p-2 md:p-4" style="min-height: 50vh;"></div>
     </div>
   </div>
+
+  <!-- VIEW: INVENTORY -->
+  <div id="viewInventory" class="app-view hidden">
+    <div class="sidebar-card p-0 overflow-hidden max-w-4xl mx-auto">
+      <div class="p-4 border-b border-yellow-500 bg-gray-800">
+        <span class="pixel text-xl text-yellow-400">🎒 Túi Đồ</span>
+      </div>
+      <div id="inventoryContent" class="p-4 overflow-x-auto" style="min-height: 50vh;"></div>
+    </div>
+  </div>
+
+  <!-- VIEW: SETTINGS -->
+  <div id="viewSettings" class="app-view hidden">
+    <div class="sidebar-card max-w-sm mx-auto mt-4">
+      <div class="text-center mb-6">
+        <div class="pixel text-2xl text-yellow-400 mb-2">⚙️ Cài Đặt</div>
+        <div class="text-sm text-gray-400">Quản lý dữ liệu game của bạn</div>
+      </div>
+      <div class="flex flex-col gap-4">
+        <button class="btn btn-blue py-3" onclick="exportSave()">💾 Lưu & Xuất Data (Backup)</button>
+        <button class="btn btn-red py-3" onclick="confirmResetGame()">🔄 Chơi Mới / Nạp Save</button>
+      </div>
+    </div>
+  </div>
+
 </main>
+
+<!-- BOTTOM NAVBAR -->
+<nav class="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 flex justify-around items-center h-16 z-40">
+  <button onclick="switchView('viewFarm')" id="nav-viewFarm" class="nav-btn flex-1 flex flex-col items-center justify-center h-full text-yellow-400 transition">
+    <span class="text-2xl mb-1 leading-none">🌾</span>
+    <span class="text-[10px] font-bold">Nông trại</span>
+  </button>
+  <button onclick="switchView('viewShop')" id="nav-viewShop" class="nav-btn flex-1 flex flex-col items-center justify-center h-full text-gray-400 transition hover:text-yellow-200">
+    <span class="text-2xl mb-1 leading-none">🏪</span>
+    <span class="text-[10px] font-bold">Cửa hàng</span>
+  </button>
+  <button onclick="switchView('viewInventory')" id="nav-viewInventory" class="nav-btn flex-1 flex flex-col items-center justify-center h-full text-gray-400 transition hover:text-yellow-200">
+    <span class="text-2xl mb-1 leading-none">🎒</span>
+    <span class="text-[10px] font-bold">Túi đồ</span>
+  </button>
+  <button onclick="switchView('viewSettings')" id="nav-viewSettings" class="nav-btn flex-1 flex flex-col items-center justify-center h-full text-gray-400 transition hover:text-yellow-200">
+    <span class="text-2xl mb-1 leading-none">⚙️</span>
+    <span class="text-[10px] font-bold">Cài đặt</span>
+  </button>
+</nav>
 
 <!-- TOAST -->
 <div id="toast"></div>
 
-<!-- ==================== MODALS ==================== -->
-
-<!-- SHOP MODAL -->
-<div id="shopModal" class="modal-overlay" style="display:none;">
-  <div class="modal-box p-0" style="max-width: 700px; width: 95%;">
-    <div class="flex items-center justify-between p-4 border-b border-yellow-500">
-      <span class="pixel text-xl text-yellow-400">🏪 Tiệm Tạp Hóa</span>
-      <div class="flex items-center gap-4">
-        <span class="text-yellow-400 font-bold">🪙 <span id="shopGold">0</span></span>
-        <button onclick="closeShop()" class="text-gray-400 hover:text-white text-xl">✕</button>
-      </div>
-    </div>
-    <!-- SHOP TABS -->
-    <div class="flex border-b border-gray-700">
-      <button class="flex-1 py-2 text-sm font-bold shop-tab active" onclick="showShopTab('buy')" id="tabBuy">🛒 Mua</button>
-      <button class="flex-1 py-2 text-sm font-bold shop-tab" onclick="showShopTab('sell')" id="tabSell">💰 Bán</button>
-    </div>
-    <div id="shopContent" class="p-4"></div>
-  </div>
-</div>
-
-<!-- INVENTORY MODAL -->
-<div id="inventoryModal" class="modal-overlay" style="display:none;">
-  <div class="modal-box p-0">
-    <div class="flex items-center justify-between p-4 border-b border-yellow-500">
-      <span class="pixel text-xl text-yellow-400">🎒 Túi Đồ</span>
-      <button onclick="closeInventory()" class="text-gray-400 hover:text-white text-xl">✕</button>
-    </div>
-    <div id="inventoryContent" class="p-4"></div>
-  </div>
-</div>
+<!-- MODALS -->
 
 <!-- PLANT MODAL -->
 <div id="plantModal" class="modal-overlay" style="display:none;">
-  <div class="modal-box p-0">
-    <div class="flex items-center justify-between p-4 border-b border-yellow-500">
+  <div class="modal-box p-0 mb-16 md:mb-0">
+    <div class="flex items-center justify-between p-4 border-b border-yellow-500 bg-gray-800">
       <span class="pixel text-xl text-yellow-400">🌱 Gieo Hạt</span>
       <button onclick="closePlantModal()" class="text-gray-400 hover:text-white text-xl">✕</button>
     </div>
@@ -162,8 +162,8 @@
 
 <!-- FERTILIZER MODAL -->
 <div id="fertilizerModal" class="modal-overlay" style="display:none;">
-  <div class="modal-box p-0">
-    <div class="flex items-center justify-between p-4 border-b border-yellow-500">
+  <div class="modal-box p-0 mb-16 md:mb-0">
+    <div class="flex items-center justify-between p-4 border-b border-yellow-500 bg-gray-800">
       <span class="pixel text-xl text-yellow-400">🌿 Chọn phân bón</span>
       <button onclick="closeFertilizerModal()" class="text-gray-400 hover:text-white text-xl">✕</button>
     </div>
@@ -173,10 +173,10 @@
 
 <!-- START SEASON MODAL -->
 <div id="startSeasonModal" class="modal-overlay" style="display:none;">
-  <div class="modal-box p-0">
-    <div class="flex items-center justify-between p-4 border-b border-yellow-500">
+  <div class="modal-box p-0 mb-16 md:mb-0">
+    <div class="flex items-center justify-between p-4 border-b border-yellow-500 bg-gray-800">
       <span class="pixel text-xl text-yellow-400">📅 Bắt đầu Game</span>
-      <button onclick="closeStartSeasonModal()" class="text-gray-400 hover:text-white text-xl">✕</button>
+      <button onclick="closeStartSeasonModal()" class="text-gray-400 hover:text-white text-xl hidden">✕</button>
     </div>
     <div id="startSeasonContent" class="p-4"></div>
   </div>
