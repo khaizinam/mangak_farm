@@ -40,8 +40,10 @@
       <button class="btn btn-yellow" onclick="openShop()">🏪 Tiệm tạp hóa</button>
       <!-- INVENTORY -->
       <button class="btn btn-purple" onclick="openInventory()">🎒 Túi đồ</button>
+      <!-- EXPORT -->
+      <button class="btn btn-blue" onclick="exportSave()">💾 Xuất Data</button>
       <!-- RESET -->
-      <button class="btn btn-red" onclick="confirmResetGame()">🔄 Reset</button>
+      <button class="btn btn-red" onclick="confirmResetGame()">🔄 Chơi Mới / Nạp Save</button>
     </div>
   </div>
 </header>
@@ -154,7 +156,7 @@
 <div id="startSeasonModal" class="modal-overlay" style="display:none;">
   <div class="modal-box p-0">
     <div class="flex items-center justify-between p-4 border-b border-yellow-500">
-      <span class="pixel text-xl text-yellow-400">📅 Chọn mùa bắt đầu</span>
+      <span class="pixel text-xl text-yellow-400">📅 Bắt đầu Game</span>
       <button onclick="closeStartSeasonModal()" class="text-gray-400 hover:text-white text-xl">✕</button>
     </div>
     <div id="startSeasonContent" class="p-4"></div>
@@ -830,10 +832,10 @@ function toast(msg, type='info') {
 }
 
 function confirmResetGame() {
-  if (!confirm('Bạn có muốn reset game? Mọi thứ sẽ được bắt đầu lại.')) return;
+  if (!confirm('Bạn có muốn bắt đầu lại hoặc nạp file save khác? Dữ liệu hiện tại sẽ bị xóa sạch.')) return;
   resetGame();
   render();
-  toast('🔄 Game đã được reset về đầu', 'success');
+  toast('🔄 Hãy chọn màn mới hoặc nạp file save', 'info');
 }
 
 function openStartSeasonModal() {
@@ -848,15 +850,67 @@ function closeStartSeasonModal() {
 function renderStartSeasonContent() {
   const content = document.getElementById('startSeasonContent');
   content.innerHTML = `
-    <div class="mb-3 text-sm text-gray-400">Chọn mùa bắt đầu cho nông trại.</div>
+    <div class="mb-3 text-sm text-gray-400">Tùy chọn bắt đầu nông trại:</div>
+    <div class="mb-2 font-bold text-yellow-400">1. Chơi màn mới (Chọn mùa)</div>
     <div class="grid grid-cols-2 gap-2 mb-4">
       ${SEASONS.map(season => {
         const label = SEASON_LABELS[season];
         return `<button class="btn btn-yellow w-full text-sm" onclick="setStartSeason('${season}')">${label}</button>`;
       }).join('')}
     </div>
-    <div class="text-xs text-gray-500">Mỗi mùa kéo dài 30 ngày. Lịch game sẽ tự động chạy và chuyển mùa khi đủ ngày.</div>
+    
+    <div class="mb-2 font-bold text-yellow-400">2. Hoặc nạp file save (Import Data)</div>
+    <input type="file" id="importSaveFile" accept=".json" class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-yellow-400 file:text-gray-900 hover:file:bg-yellow-500 mb-4" onchange="handleImportSave(event)">
+    
+    <div class="text-xs text-gray-500">Mỗi mùa kéo dài 30 ngày. Lịch game tự động chạy theo thời gian thực.</div>
   `;
+}
+
+function exportSave() {
+  const dataStr = localStorage.getItem('mangak_farm_v1');
+  if (!dataStr) {
+    toast('Chưa có dữ liệu để xuất!', 'error');
+    return;
+  }
+  const blob = new Blob([dataStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `mangak_farm_save_${Date.now()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('💾 Đã xuất file save thành công!', 'success');
+}
+
+function handleImportSave(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const content = e.target.result;
+      const parsed = JSON.parse(content);
+      if (typeof parsed !== 'object' || !parsed.plots) {
+        throw new Error('Invalid save format');
+      }
+      localStorage.setItem('mangak_farm_v1', content);
+      
+      // Update global game state
+      G = window.GAME.loadState();
+      window.GAME.G = G;
+      window.GAME.syncUnlockedPlots();
+      
+      render();
+      closeStartSeasonModal();
+      toast('✅ Đã nạp file save thành công!', 'success');
+    } catch (err) {
+      toast('❌ File save không hợp lệ!', 'error');
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
 }
 
 function updateSeasonDisplay() {
