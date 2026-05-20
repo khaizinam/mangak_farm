@@ -378,9 +378,19 @@ export function renderSellTab() {
         </div>
         
         <!-- Actions -->
-        <div class="grid grid-cols-2 gap-1.5 mt-auto">
-          <button class="btn btn-yellow text-[10px] sm:text-xs py-1.5 font-bold flex items-center justify-center gap-1 shadow-sm" onclick="shopSell('${k}', 1)">Bán 1</button>
-          <button class="btn btn-red text-[10px] sm:text-xs py-1.5 font-bold flex items-center justify-center gap-1 shadow-sm" onclick="shopSell('${k}', ${inv[k]})">Bán hết</button>
+        <div class="flex flex-col gap-2 mt-auto">
+          <!-- Quantity Selector Row -->
+          <div class="flex items-center justify-between gap-1 bg-gray-900/60 p-1 rounded-lg border border-gray-700/60">
+            <button class="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-white rounded text-xs font-bold transition-colors select-none" onclick="adjustSellQty('${k}', -1, ${inv[k]})">-</button>
+            <input type="number" id="sell_qty_${k}" class="no-spinner w-12 bg-transparent text-center text-xs font-bold text-white outline-none border-none" value="1" min="1" max="${inv[k]}" oninput="validateSellQty('${k}', ${inv[k]})" onblur="if(this.value === '' || parseInt(this.value) < 1) this.value = 1;" onkeydown="if(event.key==='Enter') handleShopSellCustom('${k}', ${inv[k]})">
+            <button class="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-white rounded text-xs font-bold transition-colors select-none" onclick="adjustSellQty('${k}', 1, ${inv[k]})">+</button>
+            <button class="px-1.5 py-0.5 bg-yellow-600/30 hover:bg-yellow-600/50 text-[10px] font-bold rounded text-yellow-400 transition-colors select-none" onclick="setSellQtyMax('${k}', ${inv[k]})">MAX</button>
+          </div>
+          <!-- Action Buttons -->
+          <div class="grid grid-cols-2 gap-1.5">
+            <button class="btn btn-yellow text-[10px] sm:text-xs py-1.5 font-bold flex items-center justify-center gap-1 shadow-sm transition-all" onclick="handleShopSellCustom('${k}', ${inv[k]})">Bán</button>
+            <button class="btn btn-red text-[10px] sm:text-xs py-1.5 font-bold flex items-center justify-center gap-1 shadow-sm transition-all" onclick="shopSell('${k}', ${inv[k]})">Bán hết</button>
+          </div>
         </div>
       </div>
     `;
@@ -410,3 +420,47 @@ export function shopSell(key, qty) {
   toast(`💰 Bán được ${res.revenue}🪙!`, 'success');
 }
 window.shopSell = shopSell;
+
+export function adjustSellQty(key, delta, max) {
+  const input = document.getElementById(`sell_qty_${key}`);
+  if (!input) return;
+  let val = parseInt(input.value) || 1;
+  val = Math.max(1, Math.min(max, val + delta));
+  input.value = val;
+}
+window.adjustSellQty = adjustSellQty;
+
+export function setSellQtyMax(key, max) {
+  const input = document.getElementById(`sell_qty_${key}`);
+  if (input) {
+    input.value = max;
+  }
+}
+window.setSellQtyMax = setSellQtyMax;
+
+export function validateSellQty(key, max) {
+  const input = document.getElementById(`sell_qty_${key}`);
+  if (!input) return;
+  let val = parseInt(input.value);
+  if (isNaN(val) || val < 1) {
+    // Let them type, but cap it if it is a number
+  } else if (val > max) {
+    input.value = max;
+  }
+}
+window.validateSellQty = validateSellQty;
+
+export function handleShopSellCustom(key, max) {
+  const input = document.getElementById(`sell_qty_${key}`);
+  if (!input) return;
+  let qty = parseInt(input.value);
+  if (isNaN(qty) || qty < 1) {
+    toast('❌ Số lượng bán không hợp lệ!', 'error');
+    return;
+  }
+  if (qty > max) {
+    qty = max;
+  }
+  shopSell(key, qty);
+}
+window.handleShopSellCustom = handleShopSellCustom;

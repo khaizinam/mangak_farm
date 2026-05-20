@@ -142,3 +142,14 @@
     .sidebar-card { font-size: 13px; }
     .plant-card, .fert-option-btn { font-size: 12px; }
   }
+
+  /* HIDE NUMBER INPUT SPINNER ARROWS */
+  .no-spinner::-webkit-outer-spin-button,
+  .no-spinner::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .no-spinner {
+    -moz-appearance: textfield;
+  }
+
