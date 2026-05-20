@@ -4,7 +4,7 @@ export default defineConfig({
   base: '/mangak_farm/',
   root: './',
   build: {
-    outDir: 'dist',
+    outDir: 'docs',
     emptyOutDir: true,
   }
 });
