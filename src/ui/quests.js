@@ -14,7 +14,16 @@ export function startTasksTimer() {
       stopTasksTimer();
       return;
     }
-    renderTasksContent();
+
+    // Only full re-render when quest state actually changes (cooldown expired → new quest generated)
+    const changed = GAME.checkQuestCooldowns();
+    if (changed) {
+      renderTasksContent();
+      return;
+    }
+
+    // Otherwise just tick the countdown displays in-place — no DOM rebuild, no scroll jump
+    tickCooldownCountdowns();
   }, 1000);
 }
 window.startTasksTimer = startTasksTimer;
@@ -27,11 +36,22 @@ export function stopTasksTimer() {
 }
 window.stopTasksTimer = stopTasksTimer;
 
+// Only update the countdown text nodes — no innerHTML replacement
+function tickCooldownCountdowns() {
+  const now = Date.now();
+  G.quests.forEach((slot, i) => {
+    if (!slot.cooldownUntil || slot.cooldownUntil <= now) return;
+    const el = document.getElementById(`quest_countdown_${i}`);
+    if (!el) return;
+    const remainingMs = slot.cooldownUntil - now;
+    const minutes = Math.floor(remainingMs / 60000);
+    const seconds = Math.floor((remainingMs % 60000) / 1000);
+    el.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  });
+}
+
 export function renderTasksContent() {
-  const changed = GAME.checkQuestCooldowns();
-  if (changed) {
-    renderSidebar();
-  }
+  GAME.checkQuestCooldowns();
   
   const el = document.getElementById('tasksContent');
   if (!el) return;
@@ -65,7 +85,7 @@ export function renderTasksContent() {
           <div class="text-4xl mb-3 animate-pulse">⏱️</div>
           <div class="text-sm font-bold text-gray-400 mb-1">Đang chờ nhiệm vụ mới...</div>
           <div class="text-2xl font-bold font-mono text-yellow-500 bg-gray-900 px-4 py-1.5 rounded-lg border border-gray-800 shadow-inner">
-            ${timeStr}
+            <span id="quest_countdown_${i}">${timeStr}</span>
           </div>
           <div class="text-[11px] text-gray-500 mt-2 italic">Làm mới nhiệm vụ cần đợi 15 phút.</div>
         </div>
