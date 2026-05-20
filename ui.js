@@ -594,135 +594,192 @@ function renderBuyTab() {
   if (!selectedShopItemId) selectedShopItemId = items[0].type + '_' + items[0].id;
 
   // Left column: list of items
-  let listHtml = `<div class="w-1/2 md:w-3/5 overflow-y-auto pr-2" style="max-height: 60vh;">`;
+  let listHtml = `<div class="w-full md:w-3/5 overflow-y-auto pr-2" style="max-height: 60vh;">`;
   
   // Group by category for better UI
-  listHtml += `<div class="font-bold text-yellow-400 mb-2 mt-2">🌱 Hạt giống</div>`;
-  items.filter(i => i.type === 'seed').forEach(item => {
-    const p = item.data;
-    const isSelected = selectedShopItemId === `seed_${p.id}`;
-    listHtml += `<div class="p-2 mb-1 rounded cursor-pointer flex justify-between items-center ${isSelected ? 'bg-yellow-900 border border-yellow-500' : 'bg-gray-800 hover:bg-gray-700'}" onclick="selectShopItem('seed_${p.id}')">
-      <div>${p.emoji} ${p.name}</div>
-      <div class="text-yellow-400 font-bold">${p.buy_price}🪙</div>
-    </div>`;
-  });
+  const categories = [
+    { title: '🌱 Hạt giống', filter: i => i.type === 'seed' },
+    { title: '🍞 Thực phẩm hồi năng lượng', filter: i => i.type === 'food' },
+    { title: '🌿 Phân bón & Thuốc', filter: i => i.type === 'fertilizer' || i.type === 'pesticide' }
+  ];
 
-  listHtml += `<div class="font-bold text-yellow-400 mb-2 mt-4">🍞 Thực phẩm hồi năng lượng</div>`;
-  items.filter(i => i.type === 'food').forEach(item => {
-    const isSelected = selectedShopItemId === `${item.type}_${item.id}`;
-    listHtml += `<div class="p-2 mb-1 rounded cursor-pointer flex justify-between items-center ${isSelected ? 'bg-yellow-900 border border-yellow-500' : 'bg-gray-800 hover:bg-gray-700'}" onclick="selectShopItem('${item.type}_${item.id}')">
-      <div>${item.data.emoji} ${item.data.name}</div>
-      <div class="text-yellow-400 font-bold">${item.data.price}🪙</div>
-    </div>`;
-  });
+  categories.forEach(cat => {
+    const catItems = items.filter(cat.filter);
+    if (catItems.length > 0) {
+      listHtml += `<div class="font-bold text-yellow-400 mb-2 mt-4 first:mt-1">${cat.title}</div>`;
+      catItems.forEach(item => {
+        const p = item.data;
+        const isSelected = selectedShopItemId === `${item.type}_${item.id}`;
+        const price = p.price || p.buy_price || PESTICIDE_PRICE;
+        
+        let descText = '';
+        if (item.type === 'seed') {
+          descText = `Hạt giống · Mùa ${SEASON_LABELS[p.season]}`;
+        } else if (item.type === 'food') {
+          descText = `Thực phẩm · Hồi +${p.energy}⚡`;
+        } else if (item.type === 'fertilizer') {
+          descText = 'Phân bón tăng trưởng';
+        } else if (item.type === 'pesticide') {
+          descText = 'Thuốc phòng trừ sâu hại';
+        }
 
-  listHtml += `<div class="font-bold text-yellow-400 mb-2 mt-4">🌿 Phân bón & Thuốc</div>`;
-  items.filter(i => i.type === 'fertilizer' || i.type === 'pesticide').forEach(item => {
-    const isSelected = selectedShopItemId === `${item.type}_${item.id}`;
-    listHtml += `<div class="p-2 mb-1 rounded cursor-pointer flex justify-between items-center ${isSelected ? 'bg-yellow-900 border border-yellow-500' : 'bg-gray-800 hover:bg-gray-700'}" onclick="selectShopItem('${item.type}_${item.id}')">
-      <div>${item.data.emoji} ${item.data.name}</div>
-      <div class="text-yellow-400 font-bold">${item.data.price || PESTICIDE_PRICE}🪙</div>
-    </div>`;
+        listHtml += `
+          <div class="p-3 mb-2 rounded-xl cursor-pointer flex justify-between items-center border transition-all ${isSelected ? 'bg-yellow-950/40 border-yellow-500 shadow-md shadow-yellow-500/10' : 'bg-gray-800/80 border-gray-700 hover:border-gray-500'}" onclick="selectShopItem('${item.type}_${item.id}')">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">${p.emoji}</span>
+              <div>
+                <div class="font-bold text-white text-sm">${p.name}</div>
+                <div class="text-xs text-gray-400 mt-0.5">${descText}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="text-yellow-400 font-bold text-sm bg-gray-900 px-2 py-1 rounded border border-gray-700 flex items-center gap-1">${price}🪙</div>
+              <span class="text-gray-500 text-xs md:hidden">▶</span>
+            </div>
+          </div>
+        `;
+      });
+    }
   });
   listHtml += `</div>`;
 
   // Right column: details
-  let detailHtml = `<div class="w-1/2 md:w-2/5 pl-4 border-l border-gray-700 flex flex-col gap-4">`;
-  const selectedItem = items.find(i => `${i.type}_${i.id}` === selectedShopItemId);
-  if (selectedItem) {
-    if (selectedItem.type === 'seed') {
-      const p = selectedItem.data;
-      const wrong = p.season !== G.season;
-      detailHtml += `
-        <div class="text-center">
-          <div class="text-6xl mb-2">${p.emoji}</div>
-          <div class="text-xl font-bold text-yellow-400">${p.name}</div>
-          <div class="text-sm text-gray-400">Mùa ${SEASON_LABELS[p.season]}</div>
-        </div>
-        <div class="bg-gray-800 p-3 rounded text-sm space-y-2">
-          <div class="flex justify-between border-b border-gray-700 pb-1"><span>Giá mua:</span> <span class="text-yellow-400 font-bold">${p.buy_price}🪙</span></div>
-          <div class="flex justify-between"><span>Giá bán NS:</span> <span class="text-green-400">${p.sell_price_per_yield}🪙/sp</span></div>
-          <div class="flex justify-between"><span>Sản lượng:</span> <span class="text-green-400">${p.base_yield}</span></div>
-          <div class="flex justify-between"><span>Thời gian:</span> <span class="text-blue-400">${formatTime(p.growth_time * 60000)}</span></div>
-          <div class="flex justify-between"><span>Khát nước:</span> <span class="text-blue-400">-${Math.round(p.water_consume_per_hour)}%/h</span></div>
-          ${wrong ? `<div class="text-red-400 text-xs mt-2 text-center bg-red-900 bg-opacity-20 p-1 rounded">⚠️ Trái mùa: -50% sản lượng</div>` : `<div class="text-green-400 text-xs mt-2 text-center bg-green-900 bg-opacity-20 p-1 rounded">✅ Đang đúng mùa</div>`}
-        </div>
-        <div class="mt-auto flex flex-col gap-2">
-          <button class="btn btn-green w-full py-2" onclick="shopBuy('seed', '${p.id}', 1)">Mua x1 (${p.buy_price}🪙)</button>
-          <button class="btn btn-green w-full py-2" onclick="shopBuy('seed', '${p.id}', 5)">Mua x5 (${p.buy_price * 5}🪙)</button>
-        </div>
-      `;
-    } else if (selectedItem.type === 'fertilizer') {
-      const f = selectedItem.data;
-      detailHtml += `
-        <div class="text-center">
-          <div class="text-6xl mb-2">${f.emoji}</div>
-          <div class="text-xl font-bold text-yellow-400">${f.name}</div>
-          <div class="text-sm text-gray-400">Dùng để bón cây</div>
-        </div>
-        <div class="bg-gray-800 p-3 rounded text-sm space-y-2">
-          <div class="flex justify-between border-b border-gray-700 pb-1"><span>Giá mua:</span> <span class="text-yellow-400 font-bold">${f.price}🪙</span></div>
-          <div class="flex flex-col mt-2">
-            <span class="text-gray-400 mb-1 font-bold">Tác dụng:</span>
-            <span class="text-green-400">+${Math.round((f.multiplier-1)*100)}% Sản lượng</span>
-            <span class="text-blue-400">-${Math.round((1-f.time_multiplier)*100)}% Thời gian lớn</span>
-          </div>
-        </div>
-        <div class="mt-auto flex flex-col gap-2">
-          <button class="btn btn-green w-full py-2" onclick="shopBuy('fertilizer', '${selectedItem.id}', 1)">Mua x1 (${f.price}🪙)</button>
-          <button class="btn btn-green w-full py-2" onclick="shopBuy('fertilizer', '${selectedItem.id}', 5)">Mua x5 (${f.price * 5}🪙)</button>
-        </div>
-      `;
-    } else if (selectedItem.type === 'pesticide') {
-      detailHtml += `
-        <div class="text-center">
-          <div class="text-6xl mb-2">🧪</div>
-          <div class="text-xl font-bold text-yellow-400">Thuốc trừ sâu</div>
-          <div class="text-sm text-gray-400">Dùng để diệt sâu bọ</div>
-        </div>
-        <div class="bg-gray-800 p-3 rounded text-sm space-y-2">
-          <div class="flex justify-between border-b border-gray-700 pb-1"><span>Giá mua:</span> <span class="text-yellow-400 font-bold">${PESTICIDE_PRICE}🪙</span></div>
-          <div class="flex flex-col mt-2">
-            <span class="text-gray-400 mb-1 font-bold">Tác dụng:</span>
-            <span class="text-green-400">Diệt sâu tức thì</span>
-            <span class="text-blue-400">Bảo vệ 24h</span>
-          </div>
-        </div>
-        <div class="mt-auto flex flex-col gap-2">
-          <button class="btn btn-green w-full py-2" onclick="shopBuy('pesticide', '', 1)">Mua x1 (${PESTICIDE_PRICE}🪙)</button>
-          <button class="btn btn-green w-full py-2" onclick="shopBuy('pesticide', '', 5)">Mua x5 (${PESTICIDE_PRICE * 5}🪙)</button>
-        </div>
-      `;
-    } else if (selectedItem.type === 'food') {
-      const f = selectedItem.data;
-      detailHtml += `
-        <div class="text-center">
-          <div class="text-6xl mb-2">${f.emoji}</div>
-          <div class="text-xl font-bold text-yellow-400">${f.name}</div>
-          <div class="text-sm text-gray-400">Thực phẩm hồi năng lượng</div>
-        </div>
-        <div class="bg-gray-800 p-3 rounded text-sm space-y-2">
-          <div class="flex justify-between border-b border-gray-700 pb-1"><span>Giá mua:</span> <span class="text-yellow-400 font-bold">${f.price}🪙</span></div>
-          <div class="flex flex-col mt-2">
-            <span class="text-gray-400 mb-1 font-bold">Tác dụng:</span>
-            <span class="text-cyan-400 font-bold">+${f.energy} ⚡ Năng lượng</span>
-          </div>
-        </div>
-        <div class="mt-auto flex flex-col gap-2">
-          <button class="btn btn-green w-full py-2" onclick="shopBuy('food', '${selectedItem.id}', 1)">Mua x1 (${f.price}🪙)</button>
-          <button class="btn btn-green w-full py-2" onclick="shopBuy('food', '${selectedItem.id}', 5)">Mua x5 (${f.price * 5}🪙)</button>
-        </div>
-      `;
-    }
-  }
+  let detailHtml = `<div class="hidden md:flex md:w-2/5 pl-4 border-l border-gray-700 flex-col gap-4">`;
+  detailHtml += renderShopItemDetails(selectedShopItemId);
   detailHtml += `</div>`;
 
-  return `<div class="flex flex-row w-full">${listHtml}${detailHtml}</div>`;
+  return `<div class="flex flex-col md:flex-row w-full gap-4">${listHtml}${detailHtml}</div>`;
+}
+
+function renderShopItemDetails(itemId) {
+  const items = [];
+  Object.values(PLANTS_DATA).filter(p=>p.season===G.season).forEach(p => {
+    items.push({ type: 'seed', id: p.id, data: p });
+  });
+  [1,2,3].forEach(f => {
+    items.push({ type: 'fertilizer', id: f.toString(), data: FERTILIZER_DATA[f] });
+  });
+  items.push({ type: 'pesticide', id: 'pesticide', data: { name: 'Thuốc trừ sâu', price: PESTICIDE_PRICE, emoji: '🧪' } });
+  
+  // Add Food items
+  items.push({ type: 'food', id: 'bread', data: { name: 'Bánh mì', price: 1000, emoji: '🍞', energy: 10 } });
+  items.push({ type: 'food', id: 'noodle', data: { name: 'Mì', price: 1800, emoji: '🍜', energy: 25 } });
+  items.push({ type: 'food', id: 'rice', data: { name: 'Cơm', price: 4800, emoji: '🍚', energy: 50 } });
+
+  const selectedItem = items.find(i => `${i.type}_${i.id}` === itemId);
+  if (!selectedItem) return '';
+
+  let detailHtml = '';
+  if (selectedItem.type === 'seed') {
+    const p = selectedItem.data;
+    const wrong = p.season !== G.season;
+    detailHtml += `
+      <div class="text-center">
+        <div class="text-6xl mb-2">${p.emoji}</div>
+        <div class="text-xl font-bold text-yellow-400">${p.name}</div>
+        <div class="text-sm text-gray-400">Mùa ${SEASON_LABELS[p.season]}</div>
+      </div>
+      <div class="bg-gray-800 p-3 rounded-lg border border-gray-700 text-sm space-y-2">
+        <div class="flex justify-between border-b border-gray-700 pb-1"><span>Giá mua:</span> <span class="text-yellow-400 font-bold">${p.buy_price}🪙</span></div>
+        <div class="flex justify-between border-b border-gray-700 pb-1"><span>Giá bán NS:</span> <span class="text-green-400">${p.sell_price_per_yield}🪙/sp</span></div>
+        <div class="flex justify-between border-b border-gray-700 pb-1"><span>Sản lượng:</span> <span class="text-green-400">${p.base_yield}</span></div>
+        <div class="flex justify-between border-b border-gray-700 pb-1"><span>Thời gian:</span> <span class="text-blue-400">${formatTime(p.growth_time * 60000)}</span></div>
+        <div class="flex justify-between"><span>Khát nước:</span> <span class="text-blue-400">-${Math.round(p.water_consume_per_hour)}%/h</span></div>
+        ${wrong ? `<div class="text-red-400 text-xs mt-2 text-center bg-red-950/40 p-1.5 rounded border border-red-900">⚠️ Trái mùa: -50% sản lượng</div>` : `<div class="text-green-400 text-xs mt-2 text-center bg-green-950/40 p-1.5 rounded border border-green-900">✅ Đang đúng mùa</div>`}
+      </div>
+      <div class="mt-4 md:mt-auto flex flex-col gap-2">
+        <button class="btn btn-green w-full py-2.5 font-bold" onclick="shopBuy('seed', '${p.id}', 1)">Mua x1 (${p.buy_price}🪙)</button>
+        <button class="btn btn-green w-full py-2.5 font-bold" onclick="shopBuy('seed', '${p.id}', 5)">Mua x5 (${p.buy_price * 5}🪙)</button>
+      </div>
+    `;
+  } else if (selectedItem.type === 'fertilizer') {
+    const f = selectedItem.data;
+    detailHtml += `
+      <div class="text-center">
+        <div class="text-6xl mb-2">${f.emoji}</div>
+        <div class="text-xl font-bold text-yellow-400">${f.name}</div>
+        <div class="text-sm text-gray-400">Dùng để bón cây</div>
+      </div>
+      <div class="bg-gray-800 p-3 rounded-lg border border-gray-700 text-sm space-y-2">
+        <div class="flex justify-between border-b border-gray-700 pb-1"><span>Giá mua:</span> <span class="text-yellow-400 font-bold">${f.price}🪙</span></div>
+        <div class="flex flex-col mt-2">
+          <span class="text-gray-400 mb-1 font-bold">Tác dụng:</span>
+          <span class="text-green-400">+${Math.round((f.multiplier-1)*100)}% Sản lượng</span>
+          <span class="text-blue-400">-${Math.round((1-f.time_multiplier)*100)}% Thời gian lớn</span>
+        </div>
+      </div>
+      <div class="mt-4 md:mt-auto flex flex-col gap-2">
+        <button class="btn btn-green w-full py-2.5 font-bold" onclick="shopBuy('fertilizer', '${selectedItem.id}', 1)">Mua x1 (${f.price}🪙)</button>
+        <button class="btn btn-green w-full py-2.5 font-bold" onclick="shopBuy('fertilizer', '${selectedItem.id}', 5)">Mua x5 (${f.price * 5}🪙)</button>
+      </div>
+    `;
+  } else if (selectedItem.type === 'pesticide') {
+    detailHtml += `
+      <div class="text-center">
+        <div class="text-6xl mb-2">🧪</div>
+        <div class="text-xl font-bold text-yellow-400">Thuốc trừ sâu</div>
+        <div class="text-sm text-gray-400">Dùng để diệt sâu bọ</div>
+      </div>
+      <div class="bg-gray-800 p-3 rounded-lg border border-gray-700 text-sm space-y-2">
+        <div class="flex justify-between border-b border-gray-700 pb-1"><span>Giá mua:</span> <span class="text-yellow-400 font-bold">${PESTICIDE_PRICE}🪙</span></div>
+        <div class="flex flex-col mt-2">
+          <span class="text-gray-400 mb-1 font-bold">Tác dụng:</span>
+          <span class="text-green-400 font-bold">Diệt sâu hại tức thì</span>
+          <span class="text-blue-400">Bảo vệ cây khỏi sâu bệnh trong 24h</span>
+        </div>
+      </div>
+      <div class="mt-4 md:mt-auto flex flex-col gap-2">
+        <button class="btn btn-green w-full py-2.5 font-bold" onclick="shopBuy('pesticide', '', 1)">Mua x1 (${PESTICIDE_PRICE}🪙)</button>
+        <button class="btn btn-green w-full py-2.5 font-bold" onclick="shopBuy('pesticide', '', 5)">Mua x5 (${PESTICIDE_PRICE * 5}🪙)</button>
+      </div>
+    `;
+  } else if (selectedItem.type === 'food') {
+    const f = selectedItem.data;
+    detailHtml += `
+      <div class="text-center">
+        <div class="text-6xl mb-2">${f.emoji}</div>
+        <div class="text-xl font-bold text-yellow-400">${f.name}</div>
+        <div class="text-sm text-gray-400">Thực phẩm hồi năng lượng</div>
+      </div>
+      <div class="bg-gray-800 p-3 rounded-lg border border-gray-700 text-sm space-y-2">
+        <div class="flex justify-between border-b border-gray-700 pb-1"><span>Giá mua:</span> <span class="text-yellow-400 font-bold">${f.price}🪙</span></div>
+        <div class="flex flex-col mt-2">
+          <span class="text-gray-400 mb-1 font-bold">Tác dụng:</span>
+          <span class="text-cyan-400 font-bold">+${f.energy} ⚡ Năng lượng</span>
+        </div>
+      </div>
+      <div class="mt-4 md:mt-auto flex flex-col gap-2">
+        <button class="btn btn-green w-full py-2.5 font-bold" onclick="shopBuy('food', '${selectedItem.id}', 1)">Mua x1 (${f.price}🪙)</button>
+        <button class="btn btn-green w-full py-2.5 font-bold" onclick="shopBuy('food', '${selectedItem.id}', 5)">Mua x5 (${f.price * 5}🪙)</button>
+      </div>
+    `;
+  }
+  return detailHtml;
+}
+
+function openShopItemModal(id) {
+  const modal = document.getElementById('shopItemModal');
+  const content = document.getElementById('shopItemModalContent');
+  if (modal && content) {
+    content.innerHTML = renderShopItemDetails(id);
+    modal.style.display = 'flex';
+  }
+}
+
+function closeShopItemModal() {
+  const modal = document.getElementById('shopItemModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
 }
 
 function selectShopItem(id) {
   selectedShopItemId = id;
-  renderShopContent();
+  if (window.innerWidth < 768) {
+    openShopItemModal(id);
+  } else {
+    renderShopContent();
+  }
 }
 
 function renderSellTab() {
@@ -732,12 +789,12 @@ function renderSellTab() {
     return `<div class="text-center py-8 text-gray-400"><div class="text-4xl mb-2">🎒</div>Túi trống, không có gì để bán</div>`;
   }
 
-  let html = `<table><thead><tr><th>Vật phẩm</th><th>Số lượng</th><th>Giá bán</th><th></th></tr></thead><tbody>`;
+  let html = `<div class="grid grid-cols-2 md:grid-cols-3 gap-3 p-1">`;
   items.forEach(k => {
     let name = k, price = 0, emoji = '📦';
     if (k.startsWith('harvest_')) {
       const p = PLANTS_DATA[k.replace('harvest_','')];
-      if (p) { name = p.name + ' (nông sản)'; price = p.sell_price_per_yield; emoji = p.emoji; }
+      if (p) { name = p.name; price = p.sell_price_per_yield; emoji = p.emoji; }
     } else if (k.startsWith('fertilizer_')) {
       const f = parseInt(k.replace('fertilizer_',''));
       const fd = FERTILIZER_DATA[f];
@@ -748,17 +805,35 @@ function renderSellTab() {
       const p = PLANTS_DATA[k];
       name = p.name + ' (hạt giống)'; price = Math.floor(p.buy_price*0.5); emoji = p.emoji;
     }
-    html += `<tr>
-      <td>${emoji} ${name}</td>
-      <td>x${inv[k]}</td>
-      <td class="text-yellow-400">${price}🪙/cái</td>
-      <td><div class="flex gap-1">
-        <button class="btn btn-yellow text-xs px-2 py-1" onclick="shopSell('${k}',1)">Bán 1</button>
-        <button class="btn btn-yellow text-xs px-2 py-1" onclick="shopSell('${k}',${inv[k]})">Bán hết</button>
-      </div></td>
-    </tr>`;
+    
+    html += `
+      <div class="relative bg-gray-800 border border-gray-700 rounded-2xl p-3 flex flex-col justify-between hover:border-gray-500 transition-all shadow-lg">
+        <!-- Badge -->
+        <div class="absolute top-2 right-2 text-[10px] sm:text-xs bg-gray-900 border border-gray-700 px-2 py-0.5 rounded-full text-cyan-400 font-bold font-mono shadow-md z-10">
+          x${inv[k]}
+        </div>
+        
+        <!-- Info -->
+        <div class="flex items-center gap-2 mb-3 pr-8">
+          <span class="text-3xl">${emoji}</span>
+          <div class="min-w-0 flex-1">
+            <div class="font-bold text-white text-xs sm:text-sm truncate" title="${name}">${name}</div>
+            <div class="text-[11px] text-yellow-400 font-semibold mt-0.5 flex items-center gap-0.5">
+              <span>Bán:</span>
+              <span class="text-yellow-300 font-bold">${price}🪙</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Actions -->
+        <div class="grid grid-cols-2 gap-1.5 mt-auto">
+          <button class="btn btn-yellow text-[10px] sm:text-xs py-1.5 font-bold flex items-center justify-center gap-1 shadow-sm" onclick="shopSell('${k}', 1)">Bán 1</button>
+          <button class="btn btn-red text-[10px] sm:text-xs py-1.5 font-bold flex items-center justify-center gap-1 shadow-sm" onclick="shopSell('${k}', ${inv[k]})">Bán hết</button>
+        </div>
+      </div>
+    `;
   });
-  html += '</tbody></table>';
+  html += '</div>';
   return html;
 }
 
@@ -767,6 +842,9 @@ function shopBuy(type, id, qty) {
   if (!res.ok) { toast(res.msg, 'error'); return; }
   updateGold();
   renderShopContent();
+  if (window.innerWidth < 768 && document.getElementById('shopItemModal').style.display === 'flex') {
+    document.getElementById('shopItemModalContent').innerHTML = renderShopItemDetails(selectedShopItemId);
+  }
   toast(`✅ Đã mua (${res.cost}🪙)`, 'success');
 }
 function shopSell(key, qty) {
@@ -1058,6 +1136,7 @@ function switchView(viewId) {
     activeBtn.classList.remove('text-gray-400');
   }
 
+  closeShopItemModal();
   if (viewId === 'viewShop') {
     if (typeof shopTab === 'undefined' || !shopTab) showShopTab('buy');
     else renderShopContent();
@@ -1086,6 +1165,12 @@ window.handleClearPlot = handleClearPlot;
 window.handleBuyLand = handleBuyLand;
 window.switchZone = switchZone;
 window.showShopTab = showShopTab;
+window.closeShopItemModal = closeShopItemModal;
+window.openShopItemModal = openShopItemModal;
+window.selectShopItem = selectShopItem;
+window.shopBuy = shopBuy;
+window.shopSell = shopSell;
+
 
 // Global Delegated Click Listener to handle dynamic DOM elements cleanly
 document.addEventListener('click', (e) => {
