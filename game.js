@@ -1,8 +1,6 @@
 // ============================================================
 // GAME DATA — MASTER DATA
 // ============================================================
-const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
-const SEASON_LABELS = { spring: '🌸 Xuân', summer: '☀️ Hạ', autumn: '🍂 Thu', winter: '❄️ Đông' };
 
 const FERTILIZER_DATA = {
   0: { name:'Không có', multiplier:1.0, time_multiplier:1.0, price:0 },

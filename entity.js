@@ -175,7 +175,7 @@ class Plot {
 class StrawberryPlant extends BasePlant {
   static id = 'p01';
   static name = 'Dâu tây';
-  static season = 'spring';
+  static season = SEASON_SPRING;
   static buy_price = 30;
   static sell_price_per_yield = 5;
   static base_yield = 9;
@@ -190,7 +190,7 @@ class StrawberryPlant extends BasePlant {
 class CabbageGreenPlant extends BasePlant {
   static id = 'p02';
   static name = 'Cải xanh';
-  static season = 'spring';
+  static season = SEASON_SPRING;
   static buy_price = 200;
   static sell_price_per_yield = 9;
   static base_yield = 40;
@@ -205,7 +205,7 @@ class CabbageGreenPlant extends BasePlant {
 class TulipPlant extends BasePlant {
   static id = 'p03';
   static name = 'Hoa tulip';
-  static season = 'spring';
+  static season = SEASON_SPRING;
   static buy_price = 600;
   static sell_price_per_yield = 12;
   static base_yield = 110;
@@ -220,7 +220,7 @@ class TulipPlant extends BasePlant {
 class CarrotPlant extends BasePlant {
   static id = 'p04';
   static name = 'Cà rốt';
-  static season = 'spring';
+  static season = SEASON_SPRING;
   static buy_price = 1500;
   static sell_price_per_yield = 15;
   static base_yield = 260;
@@ -236,7 +236,7 @@ class CarrotPlant extends BasePlant {
 class TomatoPlant extends BasePlant {
   static id = 'p05';
   static name = 'Cà chua';
-  static season = 'summer';
+  static season = SEASON_SUMMER;
   static buy_price = 40;
   static sell_price_per_yield = 6;
   static base_yield = 10;
@@ -251,7 +251,7 @@ class TomatoPlant extends BasePlant {
 class BellPepperPlant extends BasePlant {
   static id = 'p06';
   static name = 'Ớt chuông';
-  static season = 'summer';
+  static season = SEASON_SUMMER;
   static buy_price = 250;
   static sell_price_per_yield = 10;
   static base_yield = 45;
@@ -266,7 +266,7 @@ class BellPepperPlant extends BasePlant {
 class CornPlant extends BasePlant {
   static id = 'p07';
   static name = 'Ngô';
-  static season = 'summer';
+  static season = SEASON_SUMMER;
   static buy_price = 700;
   static sell_price_per_yield = 14;
   static base_yield = 110;
@@ -281,7 +281,7 @@ class CornPlant extends BasePlant {
 class WatermelonPlant extends BasePlant {
   static id = 'p08';
   static name = 'Dưa hấu';
-  static season = 'summer';
+  static season = SEASON_SUMMER;
   static buy_price = 1800;
   static sell_price_per_yield = 18;
   static base_yield = 260;
@@ -297,7 +297,7 @@ class WatermelonPlant extends BasePlant {
 class EggplantPlant extends BasePlant {
   static id = 'p09';
   static name = 'Cà tím';
-  static season = 'autumn';
+  static season = SEASON_AUTUMN;
   static buy_price = 35;
   static sell_price_per_yield = 5;
   static base_yield = 10;
@@ -312,7 +312,7 @@ class EggplantPlant extends BasePlant {
 class SweetPotatoPlant extends BasePlant {
   static id = 'p10';
   static name = 'Khoai lang';
-  static season = 'autumn';
+  static season = SEASON_AUTUMN;
   static buy_price = 220;
   static sell_price_per_yield = 9;
   static base_yield = 44;
@@ -327,7 +327,7 @@ class SweetPotatoPlant extends BasePlant {
 class ApplePlant extends BasePlant {
   static id = 'p11';
   static name = 'Táo';
-  static season = 'autumn';
+  static season = SEASON_AUTUMN;
   static buy_price = 650;
   static sell_price_per_yield = 13;
   static base_yield = 110;
@@ -342,7 +342,7 @@ class ApplePlant extends BasePlant {
 class PumpkinPlant extends BasePlant {
   static id = 'p12';
   static name = 'Bí ngô';
-  static season = 'autumn';
+  static season = SEASON_AUTUMN;
   static buy_price = 2000;
   static sell_price_per_yield = 20;
   static base_yield = 260;
@@ -358,7 +358,7 @@ class PumpkinPlant extends BasePlant {
 class CabbageWinterPlant extends BasePlant {
   static id = 'p13';
   static name = 'Cải bắp';
-  static season = 'winter';
+  static season = SEASON_WINTER;
   static buy_price = 45;
   static sell_price_per_yield = 6;
   static base_yield = 11;
@@ -373,7 +373,7 @@ class CabbageWinterPlant extends BasePlant {
 class OnionPlant extends BasePlant {
   static id = 'p14';
   static name = 'Hành tây';
-  static season = 'winter';
+  static season = SEASON_WINTER;
   static buy_price = 260;
   static sell_price_per_yield = 10;
   static base_yield = 47;
@@ -388,7 +388,7 @@ class OnionPlant extends BasePlant {
 class RadishPlant extends BasePlant {
   static id = 'p15';
   static name = 'Củ cải';
-  static season = 'winter';
+  static season = SEASON_WINTER;
   static buy_price = 750;
   static sell_price_per_yield = 15;
   static base_yield = 110;
@@ -403,7 +403,7 @@ class RadishPlant extends BasePlant {
 class GingerPlant extends BasePlant {
   static id = 'p16';
   static name = 'Gừng';
-  static season = 'winter';
+  static season = SEASON_WINTER;
   static buy_price = 2200;
   static sell_price_per_yield = 22;
   static base_yield = 260;
