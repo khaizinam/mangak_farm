@@ -4,35 +4,13 @@
 const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 const SEASON_LABELS = { spring: '🌸 Xuân', summer: '☀️ Hạ', autumn: '🍂 Thu', winter: '❄️ Đông' };
 
-const PLANTS_DATA = {
-  // --- XUÂN ---
-  p01: { id:'p01', name:'Dâu tây', season:'spring', buy_price:30, sell_price_per_yield:5, base_yield:9, growth_time:15, rot_time:1440, water_consume_per_hour:16.67, drought_penalty_per_hour:0.05, bug_penalty_per_hour:0.03, emoji:'🍓' },
-  p02: { id:'p02', name:'Cải xanh', season:'spring', buy_price:200, sell_price_per_yield:9, base_yield:40, growth_time:360, rot_time:1440, water_consume_per_hour:16.67, drought_penalty_per_hour:0.05, bug_penalty_per_hour:0.03, emoji:'🥬' },
-  p03: { id:'p03', name:'Hoa tulip', season:'spring', buy_price:600, sell_price_per_yield:12, base_yield:110, growth_time:720, rot_time:1440, water_consume_per_hour:16.67, drought_penalty_per_hour:0.05, bug_penalty_per_hour:0.03, emoji:'🌷' },
-  p04: { id:'p04', name:'Cà rốt', season:'spring', buy_price:1500, sell_price_per_yield:15, base_yield:260, growth_time:1440, rot_time:1440, water_consume_per_hour:16.67, drought_penalty_per_hour:0.05, bug_penalty_per_hour:0.03, emoji:'🥕' },
-  // --- HẠ ---
-  p05: { id:'p05', name:'Cà chua', season:'summer', buy_price:40, sell_price_per_yield:6, base_yield:10, growth_time:15, rot_time:1440, water_consume_per_hour:16.67, drought_penalty_per_hour:0.05, bug_penalty_per_hour:0.03, emoji:'🍅' },
-  p06: { id:'p06', name:'Ớt chuông', season:'summer', buy_price:250, sell_price_per_yield:10, base_yield:45, growth_time:360, rot_time:1440, water_consume_per_hour:16.67, drought_penalty_per_hour:0.05, bug_penalty_per_hour:0.03, emoji:'🫑' },
-  p07: { id:'p07', name:'Ngô', season:'summer', buy_price:700, sell_price_per_yield:14, base_yield:110, growth_time:720, rot_time:1440, water_consume_per_hour:16.67, drought_penalty_per_hour:0.05, bug_penalty_per_hour:0.03, emoji:'🌽' },
-  p08: { id:'p08', name:'Dưa hấu', season:'summer', buy_price:1800, sell_price_per_yield:18, base_yield:260, growth_time:1440, rot_time:1440, water_consume_per_hour:16.67, drought_penalty_per_hour:0.05, bug_penalty_per_hour:0.03, emoji:'🍉' },
-  // --- THU ---
-  p09: { id:'p09', name:'Cà tím', season:'autumn', buy_price:35, sell_price_per_yield:5, base_yield:10, growth_time:15, rot_time:1440, water_consume_per_hour:16.67, drought_penalty_per_hour:0.05, bug_penalty_per_hour:0.03, emoji:'🍆' },
-  p10: { id:'p10', name:'Khoai lang', season:'autumn', buy_price:220, sell_price_per_yield:9, base_yield:44, growth_time:360, rot_time:1440, water_consume_per_hour:16.67, drought_penalty_per_hour:0.05, bug_penalty_per_hour:0.03, emoji:'🍠' },
-  p11: { id:'p11', name:'Táo', season:'autumn', buy_price:650, sell_price_per_yield:13, base_yield:110, growth_time:720, rot_time:1440, water_consume_per_hour:16.67, drought_penalty_per_hour:0.05, bug_penalty_per_hour:0.03, emoji:'🍎' },
-  p12: { id:'p12', name:'Bí ngô', season:'autumn', buy_price:2000, sell_price_per_yield:20, base_yield:260, growth_time:1440, rot_time:1440, water_consume_per_hour:16.67, drought_penalty_per_hour:0.05, bug_penalty_per_hour:0.03, emoji:'🎃' },
-  // --- ĐÔNG ---
-  p13: { id:'p13', name:'Cải bắp', season:'winter', buy_price:45, sell_price_per_yield:6, base_yield:11, growth_time:15, rot_time:1440, water_consume_per_hour:16.67, drought_penalty_per_hour:0.05, bug_penalty_per_hour:0.03, emoji:'🥦' },
-  p14: { id:'p14', name:'Hành tây', season:'winter', buy_price:260, sell_price_per_yield:10, base_yield:47, growth_time:360, rot_time:1440, water_consume_per_hour:16.67, drought_penalty_per_hour:0.05, bug_penalty_per_hour:0.03, emoji:'🧅' },
-  p15: { id:'p15', name:'Củ cải', season:'winter', buy_price:750, sell_price_per_yield:15, base_yield:110, growth_time:720, rot_time:1440, water_consume_per_hour:16.67, drought_penalty_per_hour:0.05, bug_penalty_per_hour:0.03, emoji:'⬜' },
-  p16: { id:'p16', name:'Gừng', season:'winter', buy_price:2200, sell_price_per_yield:22, base_yield:260, growth_time:1440, rot_time:1440, water_consume_per_hour:16.67, drought_penalty_per_hour:0.05, bug_penalty_per_hour:0.03, emoji:'🫚' },
-};
-
 const FERTILIZER_DATA = {
   0: { name:'Không có', multiplier:1.0, time_multiplier:1.0, price:0 },
   1: { name:'Phân thường', multiplier:1.2, time_multiplier:0.9, price:50, emoji:'🟤' },
   2: { name:'Phân tốt', multiplier:1.5, time_multiplier:0.8, price:150, emoji:'🟠' },
   3: { name:'Phân cao cấp', multiplier:2.0, time_multiplier:0.7, price:400, emoji:'⭐' },
 };
+window.FERTILIZER_DATA = FERTILIZER_DATA;
 
 const PESTICIDE_PRICE = 30;
 const PESTICIDE_DURATION_MS = 24 * 60 * 60 * 1000; // 24h
@@ -74,7 +52,7 @@ function buildPlots() {
   const plots = {};
   for (let z = 0; z < 3; z++) {
     for (let i = 0; i < 36; i++) {
-      plots[`${z}_${i}`] = { zone: z, index: i, locked: true };
+      plots[`${z}_${i}`] = new Plot({ zone: z, index: i, locked: true });
     }
   }
   return plots;
@@ -88,12 +66,13 @@ const SAVE_KEY = 'mangak_farm_v1';
 function loadState() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
+    let s;
     if (!raw) {
-      const state = defaultState();
-      state.needsStartSeason = true;
-      return state;
+      s = defaultState();
+      s.needsStartSeason = true;
+    } else {
+      s = JSON.parse(raw);
     }
-    const s = JSON.parse(raw);
     // Migrate nếu thiếu field
     if (!s.plots_unlocked) s.plots_unlocked = [3, 0, 0];
     if (!s.inventory) s.inventory = {};
@@ -101,8 +80,34 @@ function loadState() {
     if (!s.lastDayTick) s.lastDayTick = Date.now();
     if (!s.season) s.season = getSeasonFromDay(s.game_day);
     if (typeof s.needsStartSeason !== 'boolean') s.needsStartSeason = false;
+
+    // Convert s.plots to Plot instances
+    if (!s.plots || Object.keys(s.plots).length === 0) {
+      s.plots = buildPlots();
+    } else {
+      const newPlots = {};
+      for (const k in s.plots) {
+        newPlots[k] = new Plot(s.plots[k]);
+      }
+      s.plots = newPlots;
+    }
+
+    // Convert s.plants to BasePlant instances
+    if (!s.plants) {
+      s.plants = {};
+    } else {
+      const newPlants = {};
+      for (const k in s.plants) {
+        if (s.plants[k]) {
+          newPlants[k] = PlantFactory.create(s.plants[k].plant_id, s.plants[k]);
+        }
+      }
+      s.plants = newPlants;
+    }
+
     return s;
-  } catch {
+  } catch (e) {
+    console.error("Lỗi khi load game state, khôi phục lại mặc định:", e);
     const state = defaultState();
     state.needsStartSeason = true;
     return state;
@@ -178,110 +183,18 @@ syncUnlockedPlots();
 // LAZY UPDATE ENGINE
 // ============================================================
 function lazyUpdatePlant(up) {
-  const plant = PLANTS_DATA[up.plant_id];
-  if (!plant) return up;
-  const now = Date.now();
-  const elapsed_ms = now - up.last_calculated_at;
-  if (elapsed_ms <= 0) return up;
-
-  const actual_growth_time_ms = plant.growth_time * 60000 * (FERTILIZER_DATA[up.fertilizer_type]?.time_multiplier || 1.0);
-
-  if (typeof up.grown_ms !== 'number') {
-    up.grown_ms = up.status === 0 ? (up.last_calculated_at - up.planted_at) : actual_growth_time_ms;
-  }
-  if (typeof up.rot_ms !== 'number') {
-    up.rot_ms = up.status === 1 ? (up.last_calculated_at - (up.planted_at + actual_growth_time_ms)) : 0;
-  }
-
-  let active_elapsed_ms = 0;
-  const grossYield = calcGrossYield(up, plant);
-
-  if (up.status === 0) {
-    const needed_ms = actual_growth_time_ms - up.grown_ms;
-    const ms_to_empty = (plant.water_consume_per_hour > 0) ? (up.current_water / plant.water_consume_per_hour) * 3600000 : Infinity;
-    
-    active_elapsed_ms = Math.min(elapsed_ms, ms_to_empty, needed_ms);
-    if (active_elapsed_ms < 0) active_elapsed_ms = 0;
-
-    const active_elapsed_hours = active_elapsed_ms / 3600000;
-
-    // --- Cập nhật nước ---
-    if (plant.water_consume_per_hour > 0) {
-      up.current_water = Math.max(0, up.current_water - plant.water_consume_per_hour * active_elapsed_hours);
-    }
-
-    // --- Cập nhật sâu & Random sâu ---
-    if (active_elapsed_ms > 0) {
-      if (up.bug_started_at) {
-        const pesticideActive = up.pesticide_until && up.pesticide_until > up.last_calculated_at;
-        let bug_active_hours = 0;
-        if (!pesticideActive) {
-          bug_active_hours = active_elapsed_hours;
-        } else if (up.pesticide_until < up.last_calculated_at + active_elapsed_ms) {
-          bug_active_hours = ((up.last_calculated_at + active_elapsed_ms) - up.pesticide_until) / 3600000;
-        }
-        up.lost_yield_by_bug += bug_active_hours * plant.base_yield * plant.bug_penalty_per_hour;
-        
-        // Cap bug penalty at 60% of gross yield
-        const maxBugPenalty = grossYield * 0.6;
-        if (up.lost_yield_by_bug > maxBugPenalty) {
-          up.lost_yield_by_bug = maxBugPenalty;
-        }
-      }
-
-      if (!up.bug_started_at && (!up.pesticide_until || up.pesticide_until < now)) {
-        const bugChance = 1 - Math.pow(0.7, active_elapsed_hours);
-        if (Math.random() < bugChance) {
-          up.bug_started_at = up.last_calculated_at + Math.random() * active_elapsed_ms;
-        }
-      }
-    }
-
-    up.grown_ms += active_elapsed_ms;
-
-    // --- Kiểm tra trạng thái chín ---
-    if (up.grown_ms >= actual_growth_time_ms) {
-      up.status = 1; // Chín
-      up.bug_started_at = null; // Xóa sâu khi cây chín
-      
-      const over_ms = elapsed_ms - active_elapsed_ms;
-      if (over_ms > 0) {
-        up.rot_ms += over_ms;
-      }
-    }
-  } else if (up.status === 1) {
-    up.rot_ms += elapsed_ms;
-  }
-
-  // Cập nhật trạng thái chết do thối rữa
-  if (up.status === 1 && up.rot_ms >= plant.rot_time * 60000) {
-    up.status = 2; // Chết
-  }
-
-  // --- Kiểm tra chết do kiệt sức ---
-  const netYield = grossYield - up.lost_yield_by_water - up.lost_yield_by_bug;
-  if (netYield <= 0 && up.status !== 2) {
-    up.status = 2;
-  }
-
-  up.last_calculated_at = now;
-  return up;
+  if (!up) return up;
+  return up.lazyUpdate(Date.now());
 }
 
 function calcGrossYield(up, plant) {
-  plant = plant || PLANTS_DATA[up.plant_id];
-  const seasonMult = up.is_wrong_season ? 0.5 : 1.0;
-  const fertMult = FERTILIZER_DATA[up.fertilizer_type]?.multiplier || 1.0;
-  return Math.round(plant.base_yield * seasonMult * fertMult);
+  if (!up) return 0;
+  return up.calcGrossYield();
 }
 
 function calcNetYield(up) {
-  const plant = PLANTS_DATA[up.plant_id];
-  const gross = calcGrossYield(up, plant);
-  const maxBug = gross * 0.6;
-  const actualBugLost = Math.min(maxBug, up.lost_yield_by_bug);
-  const lost = up.lost_yield_by_water + actualBugLost;
-  return Math.max(1, gross - Math.floor(lost));
+  if (!up) return 0;
+  return up.calcNetYield();
 }
 
 // Chạy lazy update tất cả cây đang trồng
@@ -289,7 +202,7 @@ function lazyUpdateAll() {
   let changed = false;
   for (const key in G.plants) {
     const before = G.plants[key].status;
-    G.plants[key] = lazyUpdatePlant(G.plants[key]);
+    G.plants[key] = G.plants[key].lazyUpdate(Date.now());
     if (G.plants[key].status !== before) changed = true;
   }
   if (changed) saveState();
@@ -324,7 +237,7 @@ function plantSeed(plotKey, plantId, fertilizerType = 0) {
   const now = Date.now();
   const isWrongSeason = plant.season !== G.season;
 
-  G.plants[plotKey] = {
+  G.plants[plotKey] = PlantFactory.create(plantId, {
     plot_key: plotKey,
     plant_id: plantId,
     status: 0,
@@ -340,7 +253,7 @@ function plantSeed(plotKey, plantId, fertilizerType = 0) {
     last_calculated_at: now,
     grown_ms: 0,
     rot_ms: 0,
-  };
+  });
 
   saveState();
   return { ok: true };
