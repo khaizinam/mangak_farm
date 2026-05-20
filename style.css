@@ -1,7 +1,11 @@
-  :root {
-    --soil: #8B5E3C; --soil-light: #A0714F; --grass: #4A7C59;
-    --sky: #87CEEB; --gold: #F4C842; --red: #E05252; --green: #4CAF50;
-  }
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --soil: #8B5E3C; --soil-light: #A0714F; --grass: #4A7C59;
+  --sky: #87CEEB; --gold: #F4C842; --red: #E05252; --green: #4CAF50;
+}
   body { font-family:'Nunito',sans-serif; background:#1a1a2e; }
   .pixel { font-family:'Pixelify Sans',monospace; }
 

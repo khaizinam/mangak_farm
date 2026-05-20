@@ -1,0 +1,11 @@
+{
+  "name": "mangak-farm",
+  "version": "1.0.0",
+  "description": "🌾 MangaK Farm - Game Nông Trại Vui Vẻ",
+  "scripts": {
+    "build": "tailwindcss -i ./style.css -o ./style-build.css"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.1"
+  }
+}

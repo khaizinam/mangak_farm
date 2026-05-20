@@ -253,6 +253,8 @@ function renderPlotModalContent() {
   const titleEl = document.getElementById('plotModalTitle');
   if (!selectedPlot) return;
 
+  updatePlotNavigationButtons();
+
   const plot = G.plots[selectedPlot];
   if (!plot || plot.locked) return;
 
@@ -406,6 +408,8 @@ function renderPlantingViewContent() {
   const titleEl = document.getElementById('plotModalTitle');
   titleEl.textContent = '🌱 Gieo Hạt';
 
+  updatePlotNavigationButtons();
+
   let mySeeds = Object.keys(G.inventory).filter(k => PLANTS_DATA[k] && G.inventory[k] > 0);
   mySeeds = mySeeds.filter(k => PLANTS_DATA[k].season === G.season);
 
@@ -485,6 +489,8 @@ function renderFertilizerViewContent() {
   const contentEl = document.getElementById('plotModalContent');
   const titleEl = document.getElementById('plotModalTitle');
   titleEl.textContent = '🌿 Bón phân';
+
+  updatePlotNavigationButtons();
 
   const backBtn = `<button class="btn btn-gray w-full text-sm mb-3" data-action="go-back-to-details">⬅️ Quay lại</button>`;
 
@@ -1211,6 +1217,81 @@ function handleDiscardItem(key, qty) {
 }
 window.handleDiscardItem = handleDiscardItem;
 
+function getNavigationPlots(currentKey) {
+  const parts = currentKey.split('_');
+  const z = parseInt(parts[0]);
+  const i = parseInt(parts[1]);
+  
+  // Sequence index: z * 36 + i
+  const currentIndex = z * 36 + i;
+  
+  let prevKey = null;
+  let prevActive = false;
+  if (currentIndex > 0) {
+    const pZ = Math.floor((currentIndex - 1) / 36);
+    const pI = (currentIndex - 1) % 36;
+    prevKey = `${pZ}_${pI}`;
+    const pPlot = G.plots[prevKey];
+    if (pPlot && !pPlot.locked) {
+      prevActive = true;
+    }
+  }
+  
+  let nextKey = null;
+  let nextActive = false;
+  if (currentIndex < 107) { // 3 * 36 - 1 = 107
+    const nZ = Math.floor((currentIndex + 1) / 36);
+    const nI = (currentIndex + 1) % 36;
+    nextKey = `${nZ}_${nI}`;
+    const nPlot = G.plots[nextKey];
+    if (nPlot && !nPlot.locked) {
+      nextActive = true;
+    }
+  }
+  
+  return {
+    prevKey,
+    prevActive,
+    nextKey,
+    nextActive
+  };
+}
+
+function navigatePlot(direction) {
+  if (!selectedPlot) return;
+  const nav = getNavigationPlots(selectedPlot);
+  let targetKey = null;
+  if (direction === 'prev' && nav.prevActive) {
+    targetKey = nav.prevKey;
+  } else if (direction === 'next' && nav.nextActive) {
+    targetKey = nav.nextKey;
+  }
+  
+  if (targetKey) {
+    selectedPlot = targetKey;
+    currentModalScreen = 'details';
+    renderPlotModalContent();
+    renderFarmGridArea();
+  }
+}
+
+function updatePlotNavigationButtons() {
+  const btnPrev = document.getElementById('btnPrevPlot');
+  const btnNext = document.getElementById('btnNextPlot');
+  if (!btnPrev || !btnNext) return;
+  
+  if (!selectedPlot) {
+    btnPrev.disabled = true;
+    btnNext.disabled = true;
+    return;
+  }
+  
+  const nav = getNavigationPlots(selectedPlot);
+  btnPrev.disabled = !nav.prevActive;
+  btnNext.disabled = !nav.nextActive;
+}
+
+window.navigatePlot = navigatePlot;
 
 // ============================================================
 // UTILS

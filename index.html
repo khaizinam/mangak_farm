@@ -11,9 +11,8 @@
 <meta property="og:title" content="🌾 MangaK Farm - Game Nông Trại Vui Vẻ"/>
 <meta property="og:description" content="Trồng trọt cây trái theo mùa, chăn nuôi gia súc gia cầm, bảo vệ nông sản khỏi sâu bệnh và phát triển trang trại mơ ước của bạn! Chơi ngay!"/>
 <meta property="og:type" content="website"/>
-<script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="style.css?v=1.0.0">
+<link rel="stylesheet" href="style-build.css?v=1.0.0">
 <style>
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: #1a1a2e; }
@@ -153,7 +152,11 @@
 <div id="plotModal" class="modal-overlay" style="display:none;">
   <div class="modal-box p-0 mb-16 md:mb-0 max-w-md w-full">
     <div class="flex items-center justify-between p-4 border-b border-yellow-500 bg-gray-800">
-      <span class="pixel text-xl text-yellow-400" id="plotModalTitle">📋 Chi tiết ô đất</span>
+      <div class="flex items-center gap-1">
+        <button id="btnPrevPlot" class="bg-gray-750 hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-white px-2.5 py-1 rounded text-sm transition" onclick="navigatePlot('prev')">◀</button>
+        <button id="btnNextPlot" class="bg-gray-750 hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-white px-2.5 py-1 rounded text-sm transition" onclick="navigatePlot('next')">▶</button>
+      </div>
+      <span class="pixel text-base sm:text-lg text-yellow-400" id="plotModalTitle">📋 Chi tiết ô đất</span>
       <button data-action="close-plot-modal" class="text-gray-400 hover:text-white text-xl close-plot-modal">✕</button>
     </div>
     <div id="plotModalContent" class="p-4 max-h-[75vh] overflow-y-auto"></div>
