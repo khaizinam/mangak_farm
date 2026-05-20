@@ -117,6 +117,16 @@
     </div>
   </div>
 
+  <!-- VIEW: PRODUCER -->
+  <div id="viewProducer" class="app-view hidden">
+    <div class="sidebar-card p-0 overflow-hidden w-full">
+      <div class="p-4 border-b border-yellow-500 bg-gray-800">
+        <span class="pixel text-xl text-yellow-400">🏭 Nhà Sản Xuất Vật Tư</span>
+      </div>
+      <div id="producerContent" class="p-4" style="min-height: 50vh;"></div>
+    </div>
+  </div>
+
   <!-- VIEW: SETTINGS -->
   <div id="viewSettings" class="app-view hidden">
     <div class="sidebar-card max-w-sm mx-auto mt-4">
@@ -146,6 +156,9 @@
   </button>
   <button onclick="switchView('viewTasks')" id="nav-viewTasks" class="nav-btn flex-1 flex flex-col items-center justify-center h-full text-gray-400 transition hover:text-yellow-200" title="Nhiệm vụ">
     <span class="text-2xl leading-none">📜</span>
+  </button>
+  <button onclick="switchView('viewProducer')" id="nav-viewProducer" class="nav-btn flex-1 flex flex-col items-center justify-center h-full text-gray-400 transition hover:text-yellow-200" title="Nhà sản xuất">
+    <span class="text-2xl leading-none">🏭</span>
   </button>
   <button onclick="switchView('viewSettings')" id="nav-viewSettings" class="nav-btn flex-1 flex flex-col items-center justify-center h-full text-gray-400 transition hover:text-yellow-200" title="Cài đặt">
     <span class="text-2xl leading-none">⚙️</span>
@@ -194,9 +207,9 @@
   </div>
 </div>
 
-<script src="constant.js?v=1.0.1" defer></script>
-<script src="entity.js?v=1.0.1" defer></script>
-<script src="game.js?v=1.0.1" defer></script>
-<script src="ui.js?v=1.0.1" defer></script>
+<script type="module" src="constant.js?v=1.0.1" defer></script>
+<script type="module" src="entity.js?v=1.0.1" defer></script>
+<script type="module" src="game.js?v=1.0.1" defer></script>
+<script type="module" src="src/main.js?v=1.0.1" defer></script>
 </body>
 </html>
