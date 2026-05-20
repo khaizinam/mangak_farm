@@ -13,6 +13,7 @@ let selectedFertilizerType = 0;
 let shopTab = 'buy';
 let autoRefreshTimer = null;
 let selectedShopItemId = null;
+let currentModalScreen = 'details'; // 'details', 'planting', 'fertilizing'
 
 // ============================================================
 // INIT
@@ -67,7 +68,7 @@ function updateGold() {
 function renderZoneTabs() {
   const names = ['🏡 Khu 1', '🌿 Khu 2', '🌳 Khu 3'];
   document.getElementById('zoneTabs').innerHTML = names.map((n,i) => `
-    <div class="zone-tab ${i===currentZone?'active':''}" onclick="switchZone(${i})">${n}
+    <div class="zone-tab ${i===currentZone?'active':''}" data-zone-id="${i}">${n}
       <span class="text-xs ml-1 opacity-70">${G.plots_unlocked[i]}/36</span>
     </div>
   `).join('');
@@ -98,7 +99,7 @@ function renderGrid() {
 
     if (!up) {
       html += `<div class="plot-cell empty ${isSelected?'ring-2 ring-yellow-400':''}"
-        onclick="selectPlot('${key}')" title="Ô trống - click để trồng cây">🟫</div>`;
+        data-plot-key="${key}" title="Ô trống - click để trồng cây">🟫</div>`;
       continue;
     }
 
@@ -116,7 +117,7 @@ function renderGrid() {
     const statusEmoji = up.status === 1 ? '✨' : '';
 
     html += `<div class="plot-cell ${statusClass} ${bugClass} ${isSelected?'ring-2 ring-yellow-400':''}"
-      onclick="selectPlot('${key}')" title="${plant.name}">
+      data-plot-key="${key}" title="${plant.name}">
       
       <div class="flex-1 flex items-center justify-center w-full">
         <span style="font-size:24px; line-height:1; display:block;">${mainEmoji}</span>
@@ -155,35 +156,39 @@ function renderBuyLand() {
   info.textContent = `${current}/36 ô đã mở`;
 }
 
-function renderSidebar() {
-  renderPlotInfo();
-  renderFarmSummary();
+function closePlotModal() {
+  selectedPlot = null;
+  currentModalScreen = 'details';
+  document.getElementById('plotModal').style.display = 'none';
+  renderGrid();
 }
 
-function renderPlotInfo() {
-  const infoEl = document.getElementById('plotInfo');
-  const actEl = document.getElementById('quickActions');
-  const btnsEl = document.getElementById('actionButtons');
-
-  if (!selectedPlot) {
-    infoEl.textContent = 'Chọn một ô đất để xem thông tin';
-    actEl.style.display = 'none';
-    return;
+function renderSidebar() {
+  renderFarmSummary();
+  if (selectedPlot && currentModalScreen === 'details') {
+    renderPlotModalContent();
   }
+}
+
+function renderPlotModalContent() {
+  const contentEl = document.getElementById('plotModalContent');
+  const titleEl = document.getElementById('plotModalTitle');
+  if (!selectedPlot) return;
 
   const plot = G.plots[selectedPlot];
-  if (plot.locked) {
-    infoEl.innerHTML = '<span class="text-red-400">🔒 Ô đất bị khóa</span>';
-    actEl.style.display = 'none';
-    return;
-  }
+  if (!plot || plot.locked) return;
 
   const up = G.plants[selectedPlot];
   if (!up) {
-    infoEl.innerHTML = `<div class="text-gray-400">🟫 Ô trống</div>
-      <div class="text-xs text-gray-500 mt-1">Ô ${parseInt(selectedPlot.split('_')[1])+1}</div>`;
-    btnsEl.innerHTML = `<button class="btn btn-green w-full" onclick="openPlantModal('${selectedPlot}')">🌱 Trồng cây</button>`;
-    actEl.style.display = '';
+    titleEl.textContent = '🟫 Ô đất trống';
+    contentEl.innerHTML = `
+      <div class="text-center py-6">
+        <div class="text-5xl mb-3">🟫</div>
+        <div class="text-gray-300 font-bold mb-1">Ô đất này đang trống</div>
+        <div class="text-xs text-gray-500 mb-4">Ô số ${parseInt(selectedPlot.split('_')[1])+1} - Khu ${parseInt(selectedPlot.split('_')[0])+1}</div>
+        <button class="btn btn-green w-full py-3 text-base" data-action="open-planting-view">🌱 Trồng cây</button>
+      </div>
+    `;
     return;
   }
 
@@ -191,9 +196,9 @@ function renderPlotInfo() {
   const waterPct = Math.round(up.current_water);
   const grossY = calcGrossYield(up, plant);
   const netY = calcNetYield(up);
-  const statusText = up.status === 0 ? '<span class="text-green-400">🌱 Sinh trưởng</span>'
-    : up.status === 1 ? '<span class="text-yellow-400">✨ Sẵn sàng thu hoạch</span>'
-    : '<span class="text-red-400">💀 Đã chết</span>';
+  const statusText = up.status === 0 ? '<span class="text-green-400 font-bold">🌱 Sinh trưởng</span>'
+    : up.status === 1 ? '<span class="text-yellow-400 font-bold">✨ Sẵn sàng thu hoạch</span>'
+    : '<span class="text-red-400 font-bold">💀 Đã chết</span>';
   const wrongSeason = up.is_wrong_season ? '<span class="text-red-400 text-xs">(⚠️ trái mùa -50%)</span>' : '';
 
   // Time info
@@ -210,45 +215,87 @@ function renderPlotInfo() {
     timeInfo = `<span class="text-yellow-400">⚠️ Héo sau ${formatTime(remaining)}</span>`;
   }
 
-  infoEl.innerHTML = `
-    <div class="font-bold text-yellow-400 text-base">${plant.emoji} ${plant.name}</div>
-    <div class="mt-1">${statusText} ${wrongSeason}</div>
-    ${timeInfo ? `<div class="text-xs mt-1">${timeInfo}</div>` : ''}
-    <div class="mt-2 space-y-1 text-xs">
-      <div>💧 Nước: <span class="${waterPct<=20?'text-red-400':waterPct<=50?'text-yellow-400':'text-blue-400'}">${waterPct}%</span></div>
-      <div>🌾 Sản lượng: <span class="text-green-400">${netY}</span><span class="text-gray-500">/${Math.round(grossY)}</span></div>
-      ${up.bug_started_at ? '<div class="text-red-400">🐛 Đang có sâu!</div>' : ''}
-      ${up.pesticide_until && up.pesticide_until > now ? '<div class="text-green-400">🛡️ Thuốc còn hiệu lực</div>' : ''}
-      <div>🌱 Phân: ${FERTILIZER_DATA[up.fertilizer_type]?.name || 'Không có'}</div>
-    </div>
-  `;
+  titleEl.textContent = `📋 Chi tiết ô đất`;
 
-  // Action buttons
+  // Render info and ALL quick actions
   let btnHtml = '';
   if (up.status === 2) {
-    btnHtml = `<button class="btn btn-gray w-full" onclick="handleRemoveDead('${selectedPlot}')">🗑️ Dọn cây chết</button>`;
+    btnHtml = `
+      <button class="btn btn-gray w-full py-2" data-action="remove-dead" data-plot="${selectedPlot}">🗑️ Dọn cây chết</button>
+      <button class="btn btn-red w-full py-2" data-action="clear-plot" data-plot="${selectedPlot}">⛏️ Cuốc đất (Dọn đất)</button>
+    `;
   } else {
-    if (up.status === 1) {
-      btnHtml += `<button class="btn btn-yellow w-full" onclick="handleHarvest('${selectedPlot}')">🌾 Thu hoạch</button>`;
-    }
-    if (waterPct <= 50) {
-      btnHtml += `<button class="btn btn-blue w-full" onclick="handleWater('${selectedPlot}')">💧 Tưới nước</button>`;
-    } else {
-      btnHtml += `<button class="btn btn-gray w-full" style="cursor:not-allowed;opacity:.5" title="Nước > 50%, chưa cần tưới">💧 Tưới nước</button>`;
-    }
-    if (hasFertilizerUpgrade(up)) {
-      btnHtml += `<button class="btn btn-green w-full" onclick="openFertilizerModal('${selectedPlot}')">🌿 Bón phân</button>`;
-    }
-    if (up.bug_started_at) {
-      btnHtml += `<button class="btn btn-green w-full" onclick="handleCatchBug('${selectedPlot}')">👋 Bắt sâu thủ công</button>`;
-      if (G.inventory['pesticide'] > 0) {
-        btnHtml += `<button class="btn btn-purple w-full" onclick="handlePesticide('${selectedPlot}')">🧪 Phun thuốc (${G.inventory['pesticide']})</button>`;
-      }
-    }
-    btnHtml += `<button class="btn btn-red w-full" onclick="handleClearPlot('${selectedPlot}')">⛏️ Cuốc đất (Huỷ cây)</button>`;
+    // 1. Tưới nước (Water)
+    btnHtml += `<button class="btn btn-blue w-full py-2" data-action="water-plant" data-plot="${selectedPlot}">💧 Tưới nước</button>`;
+    
+    // 2. Bón phân (Fertilizer)
+    btnHtml += `<button class="btn btn-green w-full py-2" data-action="open-fertilizer-view">🌿 Bón phân</button>`;
+
+    // 3. Thu hoạch (Harvest)
+    btnHtml += `<button class="btn btn-yellow w-full py-2" data-action="harvest-plant" data-plot="${selectedPlot}">🌾 Thu hoạch</button>`;
+    
+    // 4. Bắt sâu thủ công
+    btnHtml += `<button class="btn btn-green w-full py-2" data-action="catch-bug" data-plot="${selectedPlot}">👋 Bắt sâu thủ công</button>`;
+    
+    // 5. Phun thuốc
+    btnHtml += `<button class="btn btn-purple w-full py-2" data-action="pesticide-plant" data-plot="${selectedPlot}">🧪 Phun thuốc diệt sâu (Còn x${G.inventory['pesticide'] || 0})</button>`;
+    
+    // 6. Cuốc đất
+    btnHtml += `<button class="btn btn-red w-full py-2" data-action="clear-plot" data-plot="${selectedPlot}">⛏️ Cuốc đất (Huỷ cây)</button>`;
   }
-  btnsEl.innerHTML = btnHtml;
-  actEl.style.display = '';
+
+  contentEl.innerHTML = `
+    <div class="flex items-center gap-3 bg-gray-800 p-3 rounded-lg border border-gray-700 mb-4">
+      <span class="text-4xl">${plant.emoji}</span>
+      <div>
+        <div class="font-bold text-yellow-400 text-lg">${plant.name}</div>
+        <div class="text-xs text-gray-400">Mùa thích hợp: ${SEASON_LABELS[plant.season]}</div>
+      </div>
+    </div>
+
+    <div class="bg-gray-800 p-4 rounded-lg border border-gray-700 space-y-3 mb-4 text-sm">
+      <div class="flex justify-between border-b border-gray-700 pb-1">
+        <span>Trạng thái:</span>
+        <span>${statusText} ${wrongSeason}</span>
+      </div>
+      ${timeInfo ? `
+      <div class="flex justify-between border-b border-gray-700 pb-1">
+        <span>Thời gian:</span>
+        <span>${timeInfo}</span>
+      </div>` : ''}
+      <div class="flex justify-between border-b border-gray-700 pb-1">
+        <span>Độ ẩm đất:</span>
+        <span class="${waterPct<=20?'text-red-400':waterPct<=50?'text-yellow-400':'text-blue-400'} font-bold">${waterPct}%</span>
+      </div>
+      <div class="w-full bg-gray-900 rounded-full h-2.5 mb-1">
+        <div class="bg-blue-500 h-2.5 rounded-full" style="width: ${waterPct}%"></div>
+      </div>
+      <div class="flex justify-between border-b border-gray-700 pb-1">
+        <span>Sản lượng ước tính:</span>
+        <div>
+          <span class="text-green-400 font-bold">${netY}</span>
+          <span class="text-gray-500">/${Math.round(grossY)}</span>
+        </div>
+      </div>
+      <div class="flex justify-between border-b border-gray-700 pb-1">
+        <span>Phân bón đã dùng:</span>
+        <span>${FERTILIZER_DATA[up.fertilizer_type]?.emoji || ''} ${FERTILIZER_DATA[up.fertilizer_type]?.name || 'Không có'}</span>
+      </div>
+      <div class="flex justify-between pb-1">
+        <span>Sâu hại:</span>
+        <span>${up.bug_started_at ? '<span class="text-red-400 font-bold">🐛 Đang có sâu!</span>' : '<span class="text-green-400">✅ Sạch sâu</span>'}</span>
+      </div>
+      ${up.pesticide_until && up.pesticide_until > now ? `
+      <div class="text-xs text-green-400 bg-green-950 bg-opacity-35 p-2 rounded border border-green-900 text-center">
+        🛡️ Đang được bảo vệ bởi thuốc diệt sâu (Còn ${formatTime(up.pesticide_until - now)})
+      </div>` : ''}
+    </div>
+
+    <div class="text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">⚡ Hành động nhanh</div>
+    <div class="grid grid-cols-2 gap-2">
+      ${btnHtml}
+    </div>
+  `;
 }
 
 function renderFarmSummary() {
@@ -257,72 +304,72 @@ function renderFarmSummary() {
   const ready = plants.filter(p=>p.status===1).length;
   const dead = plants.filter(p=>p.status===2).length;
   const bugs = plants.filter(p=>p.bug_started_at).length;
-  document.getElementById('farmSummary').innerHTML = `
-    <div class="flex justify-between"><span class="text-gray-400">🌱 Đang trồng</span><span>${growing}</span></div>
-    <div class="flex justify-between"><span class="text-gray-400">✨ Có thể thu</span><span class="text-yellow-400">${ready}</span></div>
-    <div class="flex justify-between"><span class="text-gray-400">💀 Đã chết</span><span class="text-red-400">${dead}</span></div>
-    <div class="flex justify-between"><span class="text-gray-400">🐛 Đang có sâu</span><span class="text-red-400">${bugs}</span></div>
-  `;
+  const el = document.getElementById('farmSummary');
+  if (el) {
+    el.innerHTML = `
+      <div class="flex justify-between"><span class="text-gray-400">🌱 Đang trồng</span><span>${growing}</span></div>
+      <div class="flex justify-between"><span class="text-gray-400">✨ Có thể thu</span><span class="text-yellow-400">${ready}</span></div>
+      <div class="flex justify-between"><span class="text-gray-400">💀 Đã chết</span><span class="text-red-400">${dead}</span></div>
+      <div class="flex justify-between"><span class="text-gray-400">🐛 Đang có sâu</span><span class="text-red-400">${bugs}</span></div>
+    `;
+  }
 }
 
-// ============================================================
-// PLANT MODAL
-// ============================================================
-function openPlantModal(plotKey) {
-  plantingPlotKey = plotKey;
+function openPlantingView() {
+  plantingPlotKey = selectedPlot;
   selectedPlantId = null;
   selectedFert = 0;
-  const modal = document.getElementById('plantModal');
-  const content = document.getElementById('plantModalContent');
+  currentModalScreen = 'planting';
+  renderPlantingViewContent();
+}
+
+function renderPlantingViewContent() {
+  const contentEl = document.getElementById('plotModalContent');
+  const titleEl = document.getElementById('plotModalTitle');
+  titleEl.textContent = '🌱 Gieo Hạt';
 
   let mySeeds = Object.keys(G.inventory).filter(k => PLANTS_DATA[k] && G.inventory[k] > 0);
   mySeeds = mySeeds.filter(k => PLANTS_DATA[k].season === G.season);
 
+  const backBtn = `<button class="btn btn-gray w-full text-sm mb-3" data-action="go-back-to-details">⬅️ Quay lại</button>`;
+
   if (mySeeds.length === 0) {
-    content.innerHTML = `<div class="text-center py-8 text-gray-400">
-      <div class="text-4xl mb-3">😢</div>
-      <div>Bạn không có hạt giống nào cho mùa ${SEASON_LABELS[G.season]}!</div>
-      <div class="text-sm mt-2">Hãy mua hạt giống ở tiệm tạp hóa</div>
-      <button class="btn btn-yellow mt-4" onclick="closePlantModal();openShop()">🏪 Đến tiệm</button>
-    </div>`;
-    modal.style.display = 'flex';
+    contentEl.innerHTML = `
+      ${backBtn}
+      <div class="text-center py-6 text-gray-400">
+        <div class="text-4xl mb-3">😢</div>
+        <div>Bạn không có hạt giống nào cho mùa ${SEASON_LABELS[G.season]}!</div>
+        <div class="text-sm mt-2">Hãy mua hạt giống ở tiệm tạp hóa</div>
+        <button class="btn btn-yellow mt-4" data-action="close-plot-modal-open-shop">🏪 Đến tiệm</button>
+      </div>`;
     return;
   }
 
-  renderPlantModalContent(mySeeds);
-  modal.style.display = 'flex';
-}
-
-function renderPlantModalContent(mySeeds) {
-  mySeeds = mySeeds || Object.keys(G.inventory).filter(k => PLANTS_DATA[k] && G.inventory[k] > 0 && PLANTS_DATA[k].season === G.season);
-  const content = document.getElementById('plantModalContent');
-
-  // My fertilizers
   const myFerts = [0,1,2,3].filter(f => f===0 || (G.inventory[`fertilizer_${f}`]>0));
 
-  content.innerHTML = `
-    <div class="mb-3 text-sm text-gray-400">🌾 Chọn cây để trồng (mùa hiện tại: <span class="text-yellow-400">${SEASON_LABELS[G.season]}</span>)</div>
-    <div class="grid grid-cols-2 gap-2 mb-4" id="seedPicker">
+  contentEl.innerHTML = `
+    ${backBtn}
+    <div class="mb-3 text-xs text-gray-400">Chọn hạt giống để gieo (mùa hiện tại: <span class="text-yellow-400">${SEASON_LABELS[G.season]}</span>)</div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4" id="seedPicker" style="max-height: 35vh; overflow-y: auto;">
       ${mySeeds.map(pid => {
         const p = PLANTS_DATA[pid];
         const wrong = p.season !== G.season;
         const fert = FERTILIZER_DATA[selectedFert || 0];
         const actTime = p.growth_time * 60000 * (fert ? fert.time_multiplier : 1.0);
         const actYield = Math.round(p.base_yield * (fert ? fert.multiplier : 1.0));
-        return `<div class="plant-card ${wrong?'wrong-season':''} ${selectedPlantId===pid?'selected':''}" id="seed_${pid}" onclick="selectSeed('${pid}')">
+        return `<div class="plant-card ${wrong?'wrong-season':''} ${selectedPlantId===pid?'selected':''}" id="seed_${pid}" data-action="select-seed" data-seed-id="${pid}">
           <div class="flex items-center gap-2">
             <span class="text-2xl">${p.emoji}</span>
             <div>
               <div class="font-bold text-sm">${p.name}</div>
-              <div class="text-xs text-gray-400">${SEASON_LABELS[p.season]} · x${G.inventory[pid]}</div>
+              <div class="text-xs text-gray-400">${SEASON_LABELS[p.season]} · Còn x${G.inventory[pid]}</div>
             </div>
           </div>
           <div class="mt-1 text-xs text-gray-500 flex gap-3">
             <span class="${selectedFert>0?'text-blue-400':''}">⏱️${formatTime(actTime)}</span>
             <span class="${selectedFert>0?'text-green-400':''}">🌾${actYield}</span>
-            <span>💧-${p.water_consume_per_hour}%/h</span>
+            <span>💧-${Math.round(p.water_consume_per_hour)}%/h</span>
           </div>
-          ${wrong?'<div class="text-xs text-red-400 mt-1">⚠️ Trái mùa: -50% sản lượng</div>':''}
         </div>`;
       }).join('')}
     </div>
@@ -332,14 +379,14 @@ function renderPlantModalContent(mySeeds) {
       <div class="flex gap-2 flex-wrap" id="fertPicker">
         ${myFerts.map(f => {
           const fd = FERTILIZER_DATA[f];
-          return `<button class="px-3 py-1 rounded-lg border text-sm font-bold transition fert-btn ${f===0?'border-yellow-400 bg-yellow-400 bg-opacity-10':' border-gray-600'}"
-            id="fert_${f}" onclick="selectFert(${f})">
+          return `<button class="px-3 py-1.5 rounded-lg border text-sm font-bold transition fert-btn ${f===selectedFert?'border-yellow-400 bg-yellow-400 bg-opacity-10':' border-gray-600 bg-gray-800'}"
+            id="fert_${f}" data-action="select-fert" data-fert-id="${f}">
             ${f===0?'Không':''}${f>0?fd.emoji:''} ${fd.name} ${f>0?`(x${G.inventory['fertilizer_'+f]})`:''}</button>`;
         }).join('')}
       </div>
     </div>
 
-    <button class="btn btn-green w-full text-base" onclick="confirmPlant()">🌱 Gieo hạt</button>
+    <button class="btn btn-green w-full text-base py-2.5" data-action="confirm-plant">🌱 Gieo hạt</button>
   `;
 }
 
@@ -352,122 +399,143 @@ function selectSeed(pid) {
 
 function selectFert(f) {
   selectedFert = f;
-  renderPlantModalContent();
+  renderPlantingViewContent();
 }
 
 function confirmPlant() {
   if (!selectedPlantId) { toast('Chọn hạt giống trước!', 'error'); return; }
   const result = plantSeed(plantingPlotKey, selectedPlantId, selectedFert);
   if (!result.ok) { toast(result.msg, 'error'); return; }
-  closePlantModal();
-  render();
   toast(`🌱 Đã gieo ${PLANTS_DATA[selectedPlantId].name}!`, 'success');
+  render();
+  goBackToDetails();
 }
 
-function closePlantModal() {
-  document.getElementById('plantModal').style.display = 'none';
+function openFertilizerView() {
+  fertilizePlotKey = selectedPlot;
+  selectedFertilizerType = 0;
+  currentModalScreen = 'fertilizing';
+  renderFertilizerViewContent();
 }
 
-// ============================================================
-// PLOT ACTIONS
-// ============================================================
+function renderFertilizerViewContent() {
+  const contentEl = document.getElementById('plotModalContent');
+  const titleEl = document.getElementById('plotModalTitle');
+  titleEl.textContent = '🌿 Bón phân';
+
+  const backBtn = `<button class="btn btn-gray w-full text-sm mb-3" data-action="go-back-to-details">⬅️ Quay lại</button>`;
+
+  if (!fertilizePlotKey || !G.plants[fertilizePlotKey]) {
+    contentEl.innerHTML = `${backBtn}<div class="text-center py-6 text-gray-400">Không có cây để bón phân.</div>`;
+    return;
+  }
+
+  const available = [1,2,3].filter(type => G.inventory[`fertilizer_${type}`] > 0);
+  if (available.length === 0) {
+    contentEl.innerHTML = `
+      ${backBtn}
+      <div class="text-center py-6 text-gray-400">
+        <div class="text-4xl mb-3">😢</div>
+        <div>Bạn không có bất kỳ loại phân bón nào trong túi đồ!</div>
+        <div class="text-sm mt-2">Hãy mua phân bón ở tiệm tạp hóa</div>
+        <button class="btn btn-yellow mt-4" data-action="close-plot-modal-open-shop">🏪 Đến tiệm</button>
+      </div>`;
+    return;
+  }
+
+  contentEl.innerHTML = `
+    ${backBtn}
+    <div class="mb-3 text-sm text-gray-400">Chọn phân bón để áp dụng cho cây hiện tại.</div>
+    <div class="grid grid-cols-1 gap-2 mb-4" id="fertilizerPicker">
+      ${available.map(type => {
+        const fd = FERTILIZER_DATA[type];
+        return `<button class="fert-option-btn w-full text-left rounded-lg border px-3 py-3 ${selectedFertilizerType===type?'border-yellow-400 bg-yellow-400 bg-opacity-10':'border-gray-600 bg-gray-800'}" data-action="select-fertilizer-type" data-fertilizer-type="${type}">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="font-bold text-yellow-400">${fd.emoji} ${fd.name}</div>
+              <div class="text-xs text-gray-400">Hiệu quả: +${Math.round((fd.multiplier-1)*100)}% Sản lượng, -${Math.round((1-fd.time_multiplier)*100)}% Thời gian</div>
+            </div>
+            <div class="text-sm text-yellow-400 font-bold">Còn x${G.inventory[`fertilizer_${type}`] || 0}</div>
+          </div>
+        </button>`;
+      }).join('')}
+    </div>
+    <button class="btn btn-green w-full py-2.5 text-base" data-action="confirm-fertilizer" ${selectedFertilizerType ? '' : 'disabled'} style="${selectedFertilizerType ? '' : 'opacity:.5;cursor:not-allowed;'}">🌿 Áp dụng</button>
+  `;
+}
+
+function selectFertilizerType(type) {
+  selectedFertilizerType = type;
+  renderFertilizerViewContent();
+}
+
+function confirmFertilizer() {
+  if (!selectedFertilizerType) { toast('Chọn loại phân trước!', 'error'); return; }
+  const res = useFertilizer(fertilizePlotKey, selectedFertilizerType);
+  if (!res.ok) { toast(res.msg, 'error'); return; }
+  toast(`🌿 Đã bón ${FERTILIZER_DATA[selectedFertilizerType].name}!`, 'success');
+  render();
+  goBackToDetails();
+}
+
+function goBackToDetails() {
+  currentModalScreen = 'details';
+  renderPlotModalContent();
+}
+
 function selectPlot(key) {
+  const plot = G.plots[key];
+  if (!plot || plot.locked) {
+    toast('🔒 Ô đất này bị khóa!', 'error');
+    return;
+  }
   selectedPlot = key;
+  currentModalScreen = 'details';
   renderGrid();
-  renderSidebar();
+  document.getElementById('plotModal').style.display = 'flex';
+  renderPlotModalContent();
 }
 
 function handleWater(key) {
   const res = waterPlant(key);
   if (!res.ok) { toast(res.msg, 'error'); return; }
-  render(); toast('💧 Đã tưới nước!', 'success');
+  render();
+  toast('💧 Đã tưới nước!', 'success');
 }
+
 function handleCatchBug(key) {
   const res = catchBug(key);
   if (!res.ok) { toast(res.msg, 'error'); return; }
-  render(); toast('👋 Đã bắt sâu!', 'success');
+  render();
+  toast('👋 Đã bắt sâu!', 'success');
 }
+
 function handlePesticide(key) {
   const res = usePesticide(key);
   if (!res.ok) { toast(res.msg, 'error'); return; }
-  render(); toast('🧪 Đã phun thuốc! (hiệu lực 24h)', 'success');
-}
-function hasFertilizerUpgrade(up) {
-  const current = up.fertilizer_type || 0;
-  return [1,2,3].some(type => type > current && G.inventory[`fertilizer_${type}`] > 0);
-}
-function openFertilizerModal(plotKey) {
-  fertilizePlotKey = plotKey;
-  selectedFertilizerType = 0;
-  renderFertilizerModalContent();
-  document.getElementById('fertilizerModal').style.display = 'flex';
-}
-function closeFertilizerModal() {
-  document.getElementById('fertilizerModal').style.display = 'none';
-}
-function renderFertilizerModalContent() {
-  const content = document.getElementById('fertilizerModalContent');
-  if (!fertilizePlotKey || !G.plants[fertilizePlotKey]) {
-    content.innerHTML = `<div class="text-center py-8 text-gray-400">Không có cây để bón phân.</div>`;
-    return;
-  }
-  const up = G.plants[fertilizePlotKey];
-  const currentType = up.fertilizer_type || 0;
-  const available = [1,2,3].filter(type => type > currentType && G.inventory[`fertilizer_${type}`] > 0);
-  if (available.length === 0) {
-    content.innerHTML = `<div class="text-center py-8 text-gray-400">Không có phân bón phù hợp hoặc cây đã dùng phân tốt nhất.</div>`;
-    return;
-  }
-
-  content.innerHTML = `
-    <div class="mb-3 text-sm text-gray-400">Chọn phân bón để áp dụng cho cây hiện tại.</div>
-    <div class="grid grid-cols-1 gap-2 mb-4" id="fertilizerPicker">
-      ${available.map(type => {
-        const fd = FERTILIZER_DATA[type];
-        return `<button class="fert-option-btn w-full text-left rounded-lg border px-3 py-3 ${selectedFertilizerType===type?'border-yellow-400 bg-yellow-400 bg-opacity-10':'border-gray-600'}" onclick="selectFertilizerType(${type})">
-          <div class="flex items-center justify-between">
-            <div>
-              <div class="font-bold">${fd.emoji} ${fd.name}</div>
-              <div class="text-xs text-gray-400">Hiệu quả +${Math.round((fd.multiplier-1)*100)}% SL, -${Math.round((1-fd.time_multiplier)*100)}% TG</div>
-            </div>
-            <div class="text-sm text-yellow-400">x${G.inventory[`fertilizer_${type}`] || 0}</div>
-          </div>
-        </button>`;
-      }).join('')}
-    </div>
-    <div class="flex gap-2">
-      <button class="btn btn-green w-full" onclick="confirmFertilizer()" ${selectedFertilizerType ? '' : 'disabled'} style="${selectedFertilizerType ? '' : 'opacity:.5;cursor:not-allowed;'}">🌿 Áp dụng</button>
-      <button class="btn btn-gray w-full" onclick="closeFertilizerModal()">Hủy</button>
-    </div>
-  `;
-}
-function selectFertilizerType(type) {
-  selectedFertilizerType = type;
-  renderFertilizerModalContent();
-}
-function confirmFertilizer() {
-  if (!selectedFertilizerType) { toast('Chọn loại phân trước!', 'error'); return; }
-  const res = useFertilizer(fertilizePlotKey, selectedFertilizerType);
-  if (!res.ok) { toast(res.msg, 'error'); return; }
-  closeFertilizerModal();
   render();
-  toast(`🌿 Đã bón ${FERTILIZER_DATA[selectedFertilizerType].name}!`, 'success');
+  toast('🧪 Đã phun thuốc! (hiệu lực 24h)', 'success');
 }
+
 function handleHarvest(key) {
   const res = harvestPlant(key);
   if (res.ok) {
-    selectedPlot = null;
+    closePlotModal();
     render();
     toast(`🌾 Thu hoạch ${res.qty} ${res.plant.name}! (+${res.qty * res.plant.sell_price_per_yield}🪙 nếu bán)`, 'success');
   } else {
-    render(); toast(res.msg, 'error');
+    render();
+    toast(res.msg, 'error');
   }
 }
+
 function handleRemoveDead(key) {
   removeDead(key);
-  selectedPlot = null;
-  render(); toast('🗑️ Đã dọn cây chết', 'info');
+  closePlotModal();
+  render();
+  toast('🗑️ Đã dọn cây chết', 'info');
 }
+
 function handleClearPlot(key) {
   const up = G.plants[key];
   if (!up) return;
@@ -475,7 +543,7 @@ function handleClearPlot(key) {
   if (confirm(`Bạn có chắc chắn muốn cuốc đất để huỷ bỏ cây ${plant.name} không? (Hạt giống sẽ không được hoàn lại)`)) {
     const res = clearPlot(key);
     if (res.ok) {
-      selectedPlot = null;
+      closePlotModal();
       render();
       toast('⛏️ Đã cuốc đất và huỷ cây thành công!', 'success');
     } else {
@@ -483,10 +551,12 @@ function handleClearPlot(key) {
     }
   }
 }
+
 function handleBuyLand() {
   const res = buyLand(currentZone);
   if (!res.ok) { toast(res.msg, 'error'); return; }
-  render(); toast(`🏗️ Đã mở thêm 3 ô đất! (-${res.price}🪙)`, 'success');
+  render();
+  toast(`🏗️ Đã mở thêm 3 ô đất! (-${res.price}🪙)`, 'success');
 }
 
 // ============================================================
@@ -567,7 +637,7 @@ function renderBuyTab() {
           <div class="flex justify-between"><span>Giá bán NS:</span> <span class="text-green-400">${p.sell_price_per_yield}🪙/sp</span></div>
           <div class="flex justify-between"><span>Sản lượng:</span> <span class="text-green-400">${p.base_yield}</span></div>
           <div class="flex justify-between"><span>Thời gian:</span> <span class="text-blue-400">${formatTime(p.growth_time * 60000)}</span></div>
-          <div class="flex justify-between"><span>Khát nước:</span> <span class="text-blue-400">-${p.water_consume_per_hour}%/h</span></div>
+          <div class="flex justify-between"><span>Khát nước:</span> <span class="text-blue-400">-${Math.round(p.water_consume_per_hour)}%/h</span></div>
           ${wrong ? `<div class="text-red-400 text-xs mt-2 text-center bg-red-900 bg-opacity-20 p-1 rounded">⚠️ Trái mùa: -50% sản lượng</div>` : `<div class="text-green-400 text-xs mt-2 text-center bg-green-900 bg-opacity-20 p-1 rounded">✅ Đang đúng mùa</div>`}
         </div>
         <div class="mt-auto flex flex-col gap-2">
@@ -920,3 +990,118 @@ function switchView(viewId) {
     renderInventoryContent();
   }
 }
+
+// Expose key UI interaction functions to global window object
+window.closePlotModal = closePlotModal;
+window.openPlantingView = openPlantingView;
+window.selectSeed = selectSeed;
+window.selectFert = selectFert;
+window.confirmPlant = confirmPlant;
+window.openFertilizerView = openFertilizerView;
+window.selectFertilizerType = selectFertilizerType;
+window.confirmFertilizer = confirmFertilizer;
+window.goBackToDetails = goBackToDetails;
+window.selectPlot = selectPlot;
+window.handleWater = handleWater;
+window.handleCatchBug = handleCatchBug;
+window.handlePesticide = handlePesticide;
+window.handleHarvest = handleHarvest;
+window.handleRemoveDead = handleRemoveDead;
+window.handleClearPlot = handleClearPlot;
+window.handleBuyLand = handleBuyLand;
+window.switchZone = switchZone;
+window.showShopTab = showShopTab;
+
+// Global Delegated Click Listener to handle dynamic DOM elements cleanly
+document.addEventListener('click', (e) => {
+  const target = e.target;
+
+  // 1. Close plot modal
+  if (target.closest('.close-plot-modal') || target.closest('[data-action="close-plot-modal"]')) {
+    closePlotModal();
+    e.preventDefault();
+    return;
+  }
+
+  // 2. Select plot cell
+  const plotCell = target.closest('.plot-cell');
+  if (plotCell && plotCell.hasAttribute('data-plot-key')) {
+    const key = plotCell.getAttribute('data-plot-key');
+    selectPlot(key);
+    e.preventDefault();
+    return;
+  }
+
+  // 3. Switch zone tab
+  const zoneTab = target.closest('.zone-tab');
+  if (zoneTab && zoneTab.hasAttribute('data-zone-id')) {
+    const zoneId = parseInt(zoneTab.getAttribute('data-zone-id'));
+    switchZone(zoneId);
+    e.preventDefault();
+    return;
+  }
+
+  // 4. Action buttons inside plot modal
+  const btn = target.closest('[data-action]');
+  if (btn) {
+    const action = btn.getAttribute('data-action');
+    const plot = btn.getAttribute('data-plot') || selectedPlot;
+    
+    switch (action) {
+      case 'close-plot-modal':
+        closePlotModal();
+        break;
+      case 'open-planting-view':
+        openPlantingView();
+        break;
+      case 'water-plant':
+        handleWater(plot);
+        break;
+      case 'open-fertilizer-view':
+        openFertilizerView();
+        break;
+      case 'harvest-plant':
+        handleHarvest(plot);
+        break;
+      case 'catch-bug':
+        handleCatchBug(plot);
+        break;
+      case 'pesticide-plant':
+        handlePesticide(plot);
+        break;
+      case 'clear-plot':
+        handleClearPlot(plot);
+        break;
+      case 'remove-dead':
+        handleRemoveDead(plot);
+        break;
+      case 'go-back-to-details':
+        goBackToDetails();
+        break;
+      case 'close-plot-modal-open-shop':
+        closePlotModal();
+        if (typeof openShop === 'function') openShop();
+        else switchView('viewShop');
+        break;
+      case 'select-seed':
+        const seedId = btn.getAttribute('data-seed-id');
+        selectSeed(seedId);
+        break;
+      case 'select-fert':
+        const fertId = parseInt(btn.getAttribute('data-fert-id'));
+        selectFert(fertId);
+        break;
+      case 'confirm-plant':
+        confirmPlant();
+        break;
+      case 'select-fertilizer-type':
+        const fertType = parseInt(btn.getAttribute('data-fertilizer-type'));
+        selectFertilizerType(fertType);
+        break;
+      case 'confirm-fertilizer':
+        confirmFertilizer();
+        break;
+    }
+    e.preventDefault();
+  }
+});

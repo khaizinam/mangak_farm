@@ -66,14 +66,6 @@
 
     <!-- SIDEBAR -->
     <div class="w-full lg:max-w-[280px] flex-shrink-0 flex flex-col gap-4">
-      <div class="sidebar-card" id="plotInfoCard">
-        <div class="text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">📋 Ô đất</div>
-        <div id="plotInfo" class="text-sm text-gray-300">Chọn một ô đất để xem thông tin</div>
-      </div>
-      <div class="sidebar-card" id="quickActions" style="display:none;">
-        <div class="text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">⚡ Hành động</div>
-        <div id="actionButtons" class="flex flex-col gap-2"></div>
-      </div>
       <div class="sidebar-card">
         <div class="text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">📊 Farm</div>
         <div id="farmSummary" class="text-sm space-y-1"></div>
@@ -149,25 +141,14 @@
 
 <!-- MODALS -->
 
-<!-- PLANT MODAL -->
-<div id="plantModal" class="modal-overlay" style="display:none;">
-  <div class="modal-box p-0 mb-16 md:mb-0">
+<!-- PLOT MODAL -->
+<div id="plotModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box p-0 mb-16 md:mb-0 max-w-md w-full">
     <div class="flex items-center justify-between p-4 border-b border-yellow-500 bg-gray-800">
-      <span class="pixel text-xl text-yellow-400">🌱 Gieo Hạt</span>
-      <button onclick="closePlantModal()" class="text-gray-400 hover:text-white text-xl">✕</button>
+      <span class="pixel text-xl text-yellow-400" id="plotModalTitle">📋 Chi tiết ô đất</span>
+      <button data-action="close-plot-modal" class="text-gray-400 hover:text-white text-xl close-plot-modal">✕</button>
     </div>
-    <div id="plantModalContent" class="p-4"></div>
-  </div>
-</div>
-
-<!-- FERTILIZER MODAL -->
-<div id="fertilizerModal" class="modal-overlay" style="display:none;">
-  <div class="modal-box p-0 mb-16 md:mb-0">
-    <div class="flex items-center justify-between p-4 border-b border-yellow-500 bg-gray-800">
-      <span class="pixel text-xl text-yellow-400">🌿 Chọn phân bón</span>
-      <button onclick="closeFertilizerModal()" class="text-gray-400 hover:text-white text-xl">✕</button>
-    </div>
-    <div id="fertilizerModalContent" class="p-4"></div>
+    <div id="plotModalContent" class="p-4 max-h-[75vh] overflow-y-auto"></div>
   </div>
 </div>
 
@@ -182,7 +163,7 @@
   </div>
 </div>
 
-<script src="game.js?v=1.0.0"></script>
-<script src="ui.js?v=1.0.0"></script>
+<script src="game.js?v=1.0.1"></script>
+<script src="ui.js?v=1.0.1"></script>
 </body>
 </html>
