@@ -2,15 +2,7 @@
 // GAME DATA — MASTER DATA
 // ============================================================
 
-const FERTILIZER_DATA = {
-  0: { name:'Không có', multiplier:1.0, time_multiplier:1.0, price:0 },
-  1: { name:'Phân thường', multiplier:1.2, time_multiplier:0.9, price:50, emoji:'🟤' },
-  2: { name:'Phân tốt', multiplier:1.5, time_multiplier:0.8, price:150, emoji:'🟠' },
-  3: { name:'Phân cao cấp', multiplier:2.0, time_multiplier:0.7, price:400, emoji:'⭐' },
-};
-window.FERTILIZER_DATA = FERTILIZER_DATA;
 
-const PESTICIDE_PRICE = 30;
 const PESTICIDE_DURATION_MS = 24 * 60 * 60 * 1000; // 24h
 const REAL_MS_PER_GAME_DAY = 24 * 60 * 60 * 1000; // 1 ngày thực = 1 ngày game
 
@@ -29,9 +21,11 @@ function defaultState() {
   const now = Date.now();
   return {
     gold: 500,
+    energy: 100,
     season: 'spring',
     game_day: 1,
     lastDayTick: now,
+    lastEnergyTick: now,
     needsStartSeason: true,
     inventory: {}, // { plantId: qty, 'fertilizer_1': qty, ... }
     // 3 khu đất, mỗi khu 36 ô (6x6). Mặc định mở 3 ô đầu khu 1
@@ -78,6 +72,8 @@ function loadState() {
     if (!s.lastDayTick) s.lastDayTick = Date.now();
     if (!s.season) s.season = getSeasonFromDay(s.game_day);
     if (typeof s.needsStartSeason !== 'boolean') s.needsStartSeason = false;
+    if (typeof s.energy !== 'number') s.energy = 100;
+    if (typeof s.lastEnergyTick !== 'number') s.lastEnergyTick = Date.now();
 
     // Convert s.plots to Plot instances
     if (!s.plots || Object.keys(s.plots).length === 0) {
@@ -198,6 +194,27 @@ function calcNetYield(up) {
 // Chạy lazy update tất cả cây đang trồng
 function lazyUpdateAll() {
   let changed = false;
+
+  // Hồi phục năng lượng nghỉ ngơi (1h hồi 20, max 100)
+  const now = Date.now();
+  if (typeof G.lastEnergyTick !== 'number') {
+    G.lastEnergyTick = now;
+    changed = true;
+  }
+  const elapsedMs = now - G.lastEnergyTick;
+  const oneHourMs = 3600000;
+  if (elapsedMs >= oneHourMs) {
+    const hoursPassed = Math.floor(elapsedMs / oneHourMs);
+    if (hoursPassed > 0) {
+      if (G.energy < 100) {
+        const energyRecovered = hoursPassed * 20;
+        G.energy = Math.min(100, G.energy + energyRecovered);
+        changed = true;
+      }
+      G.lastEnergyTick += hoursPassed * oneHourMs;
+    }
+  }
+
   for (const key in G.plants) {
     const before = G.plants[key].status;
     G.plants[key] = G.plants[key].lazyUpdate(Date.now());
@@ -210,6 +227,15 @@ function lazyUpdateAll() {
 // ============================================================
 // ACTIONS
 // ============================================================
+function consumeEnergy(amount = 1) {
+  if (typeof G.energy !== 'number') G.energy = 100;
+  if (G.energy < amount) {
+    return { ok: false, msg: '❌ Không đủ năng lượng! Hãy ăn thêm thức ăn hoặc nông sản.' };
+  }
+  G.energy -= amount;
+  return { ok: true };
+}
+
 function plantSeed(plotKey, plantId, fertilizerType = 0) {
   const plot = G.plots[plotKey];
   if (!plot || plot.locked) return { ok: false, msg: 'Ô đất bị khóa' };
@@ -222,13 +248,9 @@ function plantSeed(plotKey, plantId, fertilizerType = 0) {
   if (!G.inventory[plantId] || G.inventory[plantId] <= 0)
     return { ok: false, msg: 'Không có hạt giống trong túi' };
 
-  // Kiểm tra phân (nếu chọn)
-  if (fertilizerType > 0) {
-    const fKey = `fertilizer_${fertilizerType}`;
-    if (!G.inventory[fKey] || G.inventory[fKey] <= 0)
-      return { ok: false, msg: 'Không có phân bón trong túi' };
-    G.inventory[fKey]--;
-  }
+  // Tiêu hao năng lượng
+  const eRes = consumeEnergy(1);
+  if (!eRes.ok) return eRes;
 
   G.inventory[plantId]--;
 
@@ -241,7 +263,7 @@ function plantSeed(plotKey, plantId, fertilizerType = 0) {
     status: 0,
     planted_at: now,
     is_wrong_season: isWrongSeason,
-    fertilizer_type: fertilizerType,
+    fertilizer_type: 0, // Mặc định không bón phân khi gieo
     current_water: 0,
     last_watered_at: null,
     bug_started_at: null,
@@ -263,6 +285,10 @@ function waterPlant(plotKey) {
   if (up.status === 2) return { ok: false, msg: 'Cây đã chết' };
   if (up.current_water > 50) return { ok: false, msg: 'Nước vẫn còn đủ (>50%)' };
 
+  // Tiêu hao năng lượng
+  const eRes = consumeEnergy(1);
+  if (!eRes.ok) return eRes;
+
   G.plants[plotKey] = lazyUpdatePlant(up);
   G.plants[plotKey].current_water = 100;
   G.plants[plotKey].last_watered_at = Date.now();
@@ -274,6 +300,10 @@ function catchBug(plotKey) {
   const up = G.plants[plotKey];
   if (!up) return { ok: false, msg: 'Không có cây' };
   if (!up.bug_started_at) return { ok: false, msg: 'Không có sâu' };
+
+  // Tiêu hao năng lượng
+  const eRes = consumeEnergy(1);
+  if (!eRes.ok) return eRes;
 
   G.plants[plotKey] = lazyUpdatePlant(up);
   G.plants[plotKey].bug_started_at = null;
@@ -287,10 +317,15 @@ function usePesticide(plotKey) {
   if (!G.inventory['pesticide'] || G.inventory['pesticide'] <= 0)
     return { ok: false, msg: 'Không có thuốc trừ sâu' };
 
+  // Tiêu hao năng lượng
+  const eRes = consumeEnergy(1);
+  if (!eRes.ok) return eRes;
+
   G.plants[plotKey] = lazyUpdatePlant(up);
   G.plants[plotKey].bug_started_at = null;
   G.plants[plotKey].pesticide_until = Date.now() + PESTICIDE_DURATION_MS;
   G.inventory['pesticide']--;
+  if (G.inventory['pesticide'] <= 0) delete G.inventory['pesticide'];
   saveState();
   return { ok: true };
 }
@@ -304,6 +339,10 @@ function useFertilizer(plotKey, fertilizerType) {
   const fKey = `fertilizer_${fertilizerType}`;
   if (!G.inventory[fKey] || G.inventory[fKey] <= 0)
     return { ok: false, msg: 'Không có phân bón trong túi' };
+
+  // Tiêu hao năng lượng
+  const eRes = consumeEnergy(1);
+  if (!eRes.ok) return eRes;
 
   G.plants[plotKey] = lazyUpdatePlant(up);
   G.plants[plotKey].fertilizer_type = fertilizerType;
@@ -322,10 +361,12 @@ function harvestPlant(plotKey) {
 
   if (updated.status === 0) return { ok: false, msg: 'Cây chưa chín' };
   if (updated.status === 2) {
-    delete G.plants[plotKey];
-    saveState();
-    return { ok: false, msg: 'Cây đã chết, mất trắng!' };
+    return { ok: false, msg: 'Cây đã chết, phải cuốc hoặc dọn cây chết!' };
   }
+
+  // Tiêu hao năng lượng
+  const eRes = consumeEnergy(1);
+  if (!eRes.ok) return eRes;
 
   const plant = PLANTS_DATA[updated.plant_id];
   const qty = calcNetYield(updated);
@@ -339,14 +380,25 @@ function harvestPlant(plotKey) {
 
 function removeDead(plotKey) {
   const up = G.plants[plotKey];
-  if (!up || up.status !== 2) return;
+  if (!up || up.status !== 2) return { ok: false, msg: 'Không phải cây chết' };
+
+  // Tiêu hao năng lượng
+  const eRes = consumeEnergy(1);
+  if (!eRes.ok) return eRes;
+
   delete G.plants[plotKey];
   saveState();
+  return { ok: true };
 }
 
 function clearPlot(plotKey) {
   const up = G.plants[plotKey];
   if (!up) return { ok: false, msg: 'Không có cây ở ô này' };
+
+  // Tiêu hao năng lượng
+  const eRes = consumeEnergy(1);
+  if (!eRes.ok) return eRes;
+
   delete G.plants[plotKey];
   saveState();
   return { ok: true };
@@ -365,13 +417,19 @@ function buyItem(itemType, itemId, qty = 1) {
     totalCost = plant.buy_price * qty;
     inventoryKey = itemId;
   } else if (itemType === 'fertilizer') {
-    const fert = FERTILIZER_DATA[parseInt(itemId)];
-    if (!fert || parseInt(itemId) === 0) return { ok: false, msg: 'Không hợp lệ' };
-    totalCost = fert.price * qty;
+    const item = ShopItemRegistry.get(itemId);
+    if (!item) return { ok: false, msg: 'Không tìm thấy loại phân bón này' };
+    totalCost = item.buyPrice * qty;
     inventoryKey = `fertilizer_${itemId}`;
   } else if (itemType === 'pesticide') {
-    totalCost = PESTICIDE_PRICE * qty;
+    const item = ShopItemRegistry.get('pesticide');
+    totalCost = item.buyPrice * qty;
     inventoryKey = 'pesticide';
+  } else if (itemType === 'food') {
+    const item = ShopItemRegistry.get(itemId);
+    if (!item) return { ok: false, msg: 'Không tìm thấy loại thực phẩm này' };
+    totalCost = item.buyPrice * qty;
+    inventoryKey = `food_${itemId}`;
   }
 
   if (G.gold < totalCost) return { ok: false, msg: `Không đủ vàng (cần ${totalCost}🪙)` };
@@ -392,10 +450,16 @@ function sellItem(inventoryKey, qty = 1) {
     if (!plant) return { ok: false, msg: 'Không xác định được loại nông sản' };
     revenue = plant.sell_price_per_yield * qty;
   } else if (inventoryKey.startsWith('fertilizer_')) {
-    const type = parseInt(inventoryKey.replace('fertilizer_', ''));
-    revenue = Math.floor((FERTILIZER_DATA[type]?.price || 0) * 0.5 * qty);
+    const type = inventoryKey.replace('fertilizer_', '');
+    const item = ShopItemRegistry.get(type);
+    revenue = Math.floor((item?.buyPrice || 0) * 0.5 * qty);
   } else if (inventoryKey === 'pesticide') {
-    revenue = Math.floor(PESTICIDE_PRICE * 0.5 * qty);
+    const item = ShopItemRegistry.get('pesticide');
+    revenue = Math.floor((item?.buyPrice || 500) * 0.5 * qty);
+  } else if (inventoryKey.startsWith('food_')) {
+    const type = inventoryKey.replace('food_', '');
+    const item = ShopItemRegistry.get(type);
+    revenue = Math.floor((item?.buyPrice || 0) * 0.5 * qty);
   } else {
     // Hạt giống bán lại 50%
     const plant = PLANTS_DATA[inventoryKey];

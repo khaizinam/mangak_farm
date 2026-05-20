@@ -39,10 +39,16 @@
       <span class="font-bold text-white font-mono" id="gameClockDisplay">00:00</span>
     </div>
 
-    <!-- GOLD -->
-    <div class="flex items-center gap-1 whitespace-nowrap ml-1 md:ml-auto pr-2">
-      <span class="text-sm">🪙</span>
-      <span class="font-bold text-yellow-400 text-sm md:text-base" id="goldDisplay">0</span>
+    <!-- GOLD & ENERGY -->
+    <div class="flex items-center gap-3 whitespace-nowrap ml-1 md:ml-auto pr-2">
+      <div class="flex items-center gap-1">
+        <span class="text-sm">🪙</span>
+        <span class="font-bold text-yellow-400 text-sm md:text-base" id="goldDisplay">0</span>
+      </div>
+      <div class="flex items-center gap-1 border-l border-gray-600 pl-2">
+        <span class="text-sm">⚡</span>
+        <span class="font-bold text-cyan-400 text-sm md:text-base" id="energyDisplay">100</span>
+      </div>
     </div>
   </div>
 </header>

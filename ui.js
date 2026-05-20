@@ -63,6 +63,10 @@ function render() {
 
 function updateGold() {
   document.getElementById('goldDisplay').textContent = G.gold.toLocaleString('vi');
+  const energyEl = document.getElementById('energyDisplay');
+  if (energyEl) {
+    energyEl.textContent = G.energy;
+  }
 }
 
 function renderZoneTabs() {
@@ -345,18 +349,15 @@ function renderPlantingViewContent() {
     return;
   }
 
-  const myFerts = [0,1,2,3].filter(f => f===0 || (G.inventory[`fertilizer_${f}`]>0));
-
   contentEl.innerHTML = `
     ${backBtn}
     <div class="mb-3 text-xs text-gray-400">Chọn hạt giống để gieo (mùa hiện tại: <span class="text-yellow-400">${SEASON_LABELS[G.season]}</span>)</div>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4" id="seedPicker" style="max-height: 35vh; overflow-y: auto;">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4" id="seedPicker" style="max-height: 45vh; overflow-y: auto;">
       ${mySeeds.map(pid => {
         const p = PLANTS_DATA[pid];
         const wrong = p.season !== G.season;
-        const fert = FERTILIZER_DATA[selectedFert || 0];
-        const actTime = p.growth_time * 60000 * (fert ? fert.time_multiplier : 1.0);
-        const actYield = Math.round(p.base_yield * (fert ? fert.multiplier : 1.0));
+        const actTime = p.growth_time * 60000;
+        const actYield = p.base_yield;
         return `<div class="plant-card ${wrong?'wrong-season':''} ${selectedPlantId===pid?'selected':''}" id="seed_${pid}" data-action="select-seed" data-seed-id="${pid}">
           <div class="flex items-center gap-2">
             <span class="text-2xl">${p.emoji}</span>
@@ -366,27 +367,15 @@ function renderPlantingViewContent() {
             </div>
           </div>
           <div class="mt-1 text-xs text-gray-500 flex gap-3">
-            <span class="${selectedFert>0?'text-blue-400':''}">⏱️${formatTime(actTime)}</span>
-            <span class="${selectedFert>0?'text-green-400':''}">🌾${actYield}</span>
+            <span>⏱️${formatTime(actTime)}</span>
+            <span>🌾${actYield}</span>
             <span>💧-${Math.round(p.water_consume_per_hour)}%/h</span>
           </div>
         </div>`;
       }).join('')}
     </div>
 
-    <div class="mb-4">
-      <div class="text-sm text-gray-400 mb-2">🌿 Phân bón (tùy chọn)</div>
-      <div class="flex gap-2 flex-wrap" id="fertPicker">
-        ${myFerts.map(f => {
-          const fd = FERTILIZER_DATA[f];
-          return `<button class="px-3 py-1.5 rounded-lg border text-sm font-bold transition fert-btn ${f===selectedFert?'border-yellow-400 bg-yellow-400 bg-opacity-10':' border-gray-600 bg-gray-800'}"
-            id="fert_${f}" data-action="select-fert" data-fert-id="${f}">
-            ${f===0?'Không':''}${f>0?fd.emoji:''} ${fd.name} ${f>0?`(x${G.inventory['fertilizer_'+f]})`:''}</button>`;
-        }).join('')}
-      </div>
-    </div>
-
-    <button class="btn btn-green w-full text-base py-2.5" data-action="confirm-plant">🌱 Gieo hạt</button>
+    <button class="btn btn-green w-full text-base py-2.5" data-action="confirm-plant">🌱 Gieo hạt (tốn 1 ⚡)</button>
   `;
 }
 
@@ -404,7 +393,7 @@ function selectFert(f) {
 
 function confirmPlant() {
   if (!selectedPlantId) { toast('Chọn hạt giống trước!', 'error'); return; }
-  const result = plantSeed(plantingPlotKey, selectedPlantId, selectedFert);
+  const result = plantSeed(plantingPlotKey, selectedPlantId);
   if (!result.ok) { toast(result.msg, 'error'); return; }
   toast(`🌱 Đã gieo ${PLANTS_DATA[selectedPlantId].name}!`, 'success');
   render();
@@ -530,10 +519,14 @@ function handleHarvest(key) {
 }
 
 function handleRemoveDead(key) {
-  removeDead(key);
-  closePlotModal();
-  render();
-  toast('🗑️ Đã dọn cây chết', 'info');
+  const res = removeDead(key);
+  if (res && res.ok) {
+    closePlotModal();
+    render();
+    toast('🗑️ Đã dọn cây chết', 'info');
+  } else if (res) {
+    toast(res.msg, 'error');
+  }
 }
 
 function handleClearPlot(key) {
@@ -592,6 +585,11 @@ function renderBuyTab() {
     items.push({ type: 'fertilizer', id: f.toString(), data: FERTILIZER_DATA[f] });
   });
   items.push({ type: 'pesticide', id: 'pesticide', data: { name: 'Thuốc trừ sâu', price: PESTICIDE_PRICE, emoji: '🧪' } });
+  
+  // Add Food items
+  items.push({ type: 'food', id: 'bread', data: { name: 'Bánh mì', price: 1000, emoji: '🍞', energy: 10 } });
+  items.push({ type: 'food', id: 'noodle', data: { name: 'Mì', price: 1800, emoji: '🍜', energy: 25 } });
+  items.push({ type: 'food', id: 'rice', data: { name: 'Cơm', price: 4800, emoji: '🍚', energy: 50 } });
 
   if (!selectedShopItemId) selectedShopItemId = items[0].type + '_' + items[0].id;
 
@@ -609,8 +607,17 @@ function renderBuyTab() {
     </div>`;
   });
 
+  listHtml += `<div class="font-bold text-yellow-400 mb-2 mt-4">🍞 Thực phẩm hồi năng lượng</div>`;
+  items.filter(i => i.type === 'food').forEach(item => {
+    const isSelected = selectedShopItemId === `${item.type}_${item.id}`;
+    listHtml += `<div class="p-2 mb-1 rounded cursor-pointer flex justify-between items-center ${isSelected ? 'bg-yellow-900 border border-yellow-500' : 'bg-gray-800 hover:bg-gray-700'}" onclick="selectShopItem('${item.type}_${item.id}')">
+      <div>${item.data.emoji} ${item.data.name}</div>
+      <div class="text-yellow-400 font-bold">${item.data.price}🪙</div>
+    </div>`;
+  });
+
   listHtml += `<div class="font-bold text-yellow-400 mb-2 mt-4">🌿 Phân bón & Thuốc</div>`;
-  items.filter(i => i.type !== 'seed').forEach(item => {
+  items.filter(i => i.type === 'fertilizer' || i.type === 'pesticide').forEach(item => {
     const isSelected = selectedShopItemId === `${item.type}_${item.id}`;
     listHtml += `<div class="p-2 mb-1 rounded cursor-pointer flex justify-between items-center ${isSelected ? 'bg-yellow-900 border border-yellow-500' : 'bg-gray-800 hover:bg-gray-700'}" onclick="selectShopItem('${item.type}_${item.id}')">
       <div>${item.data.emoji} ${item.data.name}</div>
@@ -684,6 +691,26 @@ function renderBuyTab() {
         <div class="mt-auto flex flex-col gap-2">
           <button class="btn btn-green w-full py-2" onclick="shopBuy('pesticide', '', 1)">Mua x1 (${PESTICIDE_PRICE}🪙)</button>
           <button class="btn btn-green w-full py-2" onclick="shopBuy('pesticide', '', 5)">Mua x5 (${PESTICIDE_PRICE * 5}🪙)</button>
+        </div>
+      `;
+    } else if (selectedItem.type === 'food') {
+      const f = selectedItem.data;
+      detailHtml += `
+        <div class="text-center">
+          <div class="text-6xl mb-2">${f.emoji}</div>
+          <div class="text-xl font-bold text-yellow-400">${f.name}</div>
+          <div class="text-sm text-gray-400">Thực phẩm hồi năng lượng</div>
+        </div>
+        <div class="bg-gray-800 p-3 rounded text-sm space-y-2">
+          <div class="flex justify-between border-b border-gray-700 pb-1"><span>Giá mua:</span> <span class="text-yellow-400 font-bold">${f.price}🪙</span></div>
+          <div class="flex flex-col mt-2">
+            <span class="text-gray-400 mb-1 font-bold">Tác dụng:</span>
+            <span class="text-cyan-400 font-bold">+${f.energy} ⚡ Năng lượng</span>
+          </div>
+        </div>
+        <div class="mt-auto flex flex-col gap-2">
+          <button class="btn btn-green w-full py-2" onclick="shopBuy('food', '${selectedItem.id}', 1)">Mua x1 (${f.price}🪙)</button>
+          <button class="btn btn-green w-full py-2" onclick="shopBuy('food', '${selectedItem.id}', 5)">Mua x5 (${f.price * 5}🪙)</button>
         </div>
       `;
     }
@@ -783,6 +810,12 @@ function renderInventoryContent() {
       name='Thuốc trừ sâu';emoji='🧪';type='Vật phẩm';
     } else if (PLANTS_DATA[k]) {
       const p=PLANTS_DATA[k];name=p.name;emoji=p.emoji;type='Hạt giống';
+    } else if (k==='food_bread') {
+      name='Bánh mì';emoji='🍞';type='Thực phẩm';
+    } else if (k==='food_noodle') {
+      name='Mì';emoji='🍜';type='Thực phẩm';
+    } else if (k==='food_rice') {
+      name='Cơm';emoji='🍚';type='Thực phẩm';
     }
     
     const isSelected = selectedInventoryItem === k;
@@ -802,7 +835,7 @@ function renderInventoryContent() {
     let name=k, emoji='📦', type='Khác', desc='';
     if (k.startsWith('harvest_')) {
       const p=PLANTS_DATA[k.replace('harvest_','')];
-      if(p){name=p.name;emoji=p.emoji;type='Nông sản';desc=`Giá bán: <span class="text-yellow-400">${p.sell_price_per_yield}🪙/cái</span>`;}
+      if(p){name=p.name;emoji=p.emoji;type='Nông sản';desc=`Giá bán: <span class="text-yellow-400">${p.sell_price_per_yield}🪙/cái</span><br><br><span class="text-green-400">💡 Có thể ăn để hồi phục +2 Năng lượng.</span>`;}
     } else if (k.startsWith('fertilizer_')) {
       const f=parseInt(k.replace('fertilizer_',''));
       const fd=FERTILIZER_DATA[f];
@@ -811,6 +844,27 @@ function renderInventoryContent() {
       name='Thuốc trừ sâu';emoji='🧪';type='Vật phẩm';desc=`Diệt sâu bọ ngay lập tức và bảo vệ cây khỏi sâu bệnh trong vòng <span class="text-blue-400">24 giờ</span>.`;
     } else if (PLANTS_DATA[k]) {
       const p=PLANTS_DATA[k];name=p.name;emoji=p.emoji;type='Hạt giống';desc=`Mùa thích hợp: <span class="text-yellow-400">${SEASON_LABELS[p.season]}</span><br>Thời gian sinh trưởng: <span class="text-blue-400">${formatTime(p.growth_time*60000)}</span><br>Sản lượng gốc: <span class="text-green-400">${p.base_yield}</span>`;
+    } else if (k==='food_bread') {
+      name='Bánh mì';emoji='🍞';type='Thực phẩm';desc=`Bánh mì thơm ngon giúp hồi phục <span class="text-cyan-400">+10 Năng lượng</span>.`;
+    } else if (k==='food_noodle') {
+      name='Mì';emoji='🍜';type='Thực phẩm';desc=`Bát mì ăn liền nóng hổi giúp hồi phục <span class="text-cyan-400">+25 Năng lượng</span>.`;
+    } else if (k==='food_rice') {
+      name='Cơm';emoji='🍚';type='Thực phẩm';desc=`Bát cơm nóng đầy đặn giúp hồi phục <span class="text-cyan-400">+50 Năng lượng</span>.`;
+    }
+
+    let eatGain = 0;
+    if (k.startsWith('harvest_')) eatGain = 2;
+    else if (k === 'food_bread') eatGain = 10;
+    else if (k === 'food_noodle') eatGain = 25;
+    else if (k === 'food_rice') eatGain = 50;
+
+    let eatButton = '';
+    if (eatGain > 0) {
+      eatButton = `
+        <div class="mt-4">
+          <button class="btn btn-blue w-full py-2 font-bold" onclick="eatFood('${k}', ${eatGain})">🍽️ Ăn (+${eatGain} ⚡)</button>
+        </div>
+      `;
     }
 
     detailHtml += `
@@ -823,6 +877,7 @@ function renderInventoryContent() {
       <div class="bg-gray-800 p-3 rounded text-sm text-gray-300 mt-2 leading-relaxed">
         ${desc}
       </div>
+      ${eatButton}
     `;
   }
   detailHtml += `</div>`;
@@ -834,6 +889,26 @@ function selectInventoryItem(k) {
   selectedInventoryItem = k;
   renderInventoryContent();
 }
+
+function eatFood(key, amount) {
+  if (G.energy >= 100) {
+    toast('⚡ Năng lượng đã đầy!', 'info');
+    return;
+  }
+  if (!G.inventory[key] || G.inventory[key] <= 0) {
+    toast('❌ Không có vật phẩm này!', 'error');
+    return;
+  }
+  G.inventory[key]--;
+  if (G.inventory[key] <= 0) delete G.inventory[key];
+  G.energy = Math.min(100, G.energy + amount);
+  saveState();
+  updateGold();
+  renderInventoryContent();
+  toast(`🍽️ Đã ăn, hồi phục +${amount} ⚡!`, 'success');
+}
+window.eatFood = eatFood;
+
 
 // ============================================================
 // UTILS

@@ -464,6 +464,94 @@ window.OnionPlant = OnionPlant;
 window.RadishPlant = RadishPlant;
 window.GingerPlant = GingerPlant;
 
+// ============================================================
+// SHOP ENTITIES (FOOD, FERTILIZER, PESTICIDE)
+// ============================================================
+class BaseShopItem {
+  constructor(id, name, emoji, buyPrice, sellPrice, type) {
+    this.id = id;
+    this.name = name;
+    this.emoji = emoji;
+    this.buyPrice = buyPrice;
+    this.sellPrice = sellPrice;
+    this.type = type; // 'seed', 'fertilizer', 'pesticide', 'food'
+  }
+}
+
+class FoodItem extends BaseShopItem {
+  constructor(id, name, emoji, buyPrice, energyRestored) {
+    super(id, name, emoji, buyPrice, Math.floor(buyPrice * 0.5), 'food');
+    this.energyRestored = energyRestored;
+  }
+}
+
+class FertilizerItem extends BaseShopItem {
+  constructor(id, name, emoji, buyPrice, multiplier, timeMultiplier) {
+    super(id, name, emoji, buyPrice, Math.floor(buyPrice * 0.5), 'fertilizer');
+    this.multiplier = multiplier;
+    this.timeMultiplier = timeMultiplier;
+  }
+}
+
+class PesticideItem extends BaseShopItem {
+  constructor(buyPrice = 500) {
+    super('pesticide', 'Thuốc trừ sâu', '🧪', buyPrice, Math.floor(buyPrice * 0.5), 'pesticide');
+  }
+}
+
+class ShopItemRegistry {
+  static items = {};
+
+  static register(item) {
+    this.items[item.id] = item;
+  }
+
+  static get(id) {
+    return this.items[id];
+  }
+
+  static getAll() {
+    return Object.values(this.items);
+  }
+}
+
+// Register default shop items
+ShopItemRegistry.register(new FoodItem('bread', 'Bánh mì', '🍞', 1000, 10));
+ShopItemRegistry.register(new FoodItem('noodle', 'Mì', '🍜', 1800, 25));
+ShopItemRegistry.register(new FoodItem('rice', 'Cơm', '🍚', 4800, 50));
+ShopItemRegistry.register(new FertilizerItem('1', 'Phân hữu cơ', '💩', 100, 1.2, 0.9));
+ShopItemRegistry.register(new FertilizerItem('2', 'Phân hóa học', '🧪', 250, 1.5, 0.7));
+ShopItemRegistry.register(new FertilizerItem('3', 'Phân thần kỳ', '✨', 600, 2.0, 0.5));
+ShopItemRegistry.register(new PesticideItem(500));
+
+// Expose Shop Items globally
+window.BaseShopItem = BaseShopItem;
+window.FoodItem = FoodItem;
+window.FertilizerItem = FertilizerItem;
+window.PesticideItem = PesticideItem;
+window.ShopItemRegistry = ShopItemRegistry;
+
+// Build FERTILIZER_DATA dynamic mapping for backward compatibility
+const FERTILIZER_DATA = {
+  0: { name:'Không có', multiplier:1.0, time_multiplier:1.0, price:0, emoji:'' }
+};
+[1,2,3].forEach(f => {
+  const item = ShopItemRegistry.get(f.toString());
+  if (item) {
+    FERTILIZER_DATA[f] = {
+      name: item.name,
+      multiplier: item.multiplier,
+      time_multiplier: item.timeMultiplier,
+      price: item.buyPrice,
+      emoji: item.emoji
+    };
+  }
+});
+window.FERTILIZER_DATA = FERTILIZER_DATA;
+
+const PESTICIDE_PRICE = ShopItemRegistry.get('pesticide').buyPrice;
+window.PESTICIDE_PRICE = PESTICIDE_PRICE;
+
 // Build PLANTS_DATA dynamic mapping for backward compatibility
 const PLANTS_DATA = {};
 for (const id in PlantFactory.classes) {
@@ -484,3 +572,4 @@ for (const id in PlantFactory.classes) {
   };
 }
 window.PLANTS_DATA = PLANTS_DATA;
+
