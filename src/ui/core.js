@@ -148,9 +148,24 @@ window.renderSidebar = renderSidebar;
 
 export function formatTime(ms) {
   if (ms <= 0) return '0ph';
-  const m = Math.floor(ms / 60000);
-  if (m < 60) return `${m}ph`;
-  return `${Math.floor(m/60)}h${m%60}ph`;
+  const totalMinutes = Math.floor(ms / 60000);
+  const days = Math.floor(totalMinutes / 1440);       // 1 ngày = 24 * 60 = 1440 phút
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days > 0) {
+    // Có ngày: "1d 2h 30ph" hoặc "1d 2h" hoặc "1d 30ph"
+    let parts = [`${days}d`];
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0) parts.push(`${minutes}m`);
+    return parts.join(' ');
+  } else if (hours > 0) {
+    // Có giờ: "2h 30ph" hoặc "2h"
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  } else {
+    // Chỉ phút: "45ph"
+    return `${minutes}m`;
+  }
 }
 window.formatTime = formatTime;
 
