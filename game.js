@@ -81,6 +81,22 @@ function loadState() {
     // Convert s.animals to BaseAnimal subclasses
     s.animals = s.animals.map(a => AnimalFactory.create(a.type, a));
 
+    // Khởi tạo nhiệm vụ nếu chưa có
+    if (!s.quests || s.quests.length !== 3) {
+      s.quests = [
+        { quest: generateRandomQuest(getRandomLevel()), cooldownUntil: null },
+        { quest: generateRandomQuest(getRandomLevel()), cooldownUntil: null },
+        { quest: generateRandomQuest(getRandomLevel()), cooldownUntil: null }
+      ];
+    } else {
+      // Khôi phục lại các đối tượng nếu có
+      s.quests.forEach((slot, idx) => {
+        if (!slot.cooldownUntil && !slot.quest) {
+          slot.quest = generateRandomQuest(getRandomLevel());
+        }
+      });
+    }
+
     // Convert s.plots to Plot instances
     if (!s.plots || Object.keys(s.plots).length === 0) {
       s.plots = buildPlots();
@@ -157,6 +173,11 @@ function updateSeasonClock() {
 function resetGame() {
   localStorage.removeItem(SAVE_KEY);
   G = defaultState();
+  G.quests = [
+    { quest: generateRandomQuest(getRandomLevel()), cooldownUntil: null },
+    { quest: generateRandomQuest(getRandomLevel()), cooldownUntil: null },
+    { quest: generateRandomQuest(getRandomLevel()), cooldownUntil: null }
+  ];
   syncUnlockedPlots();
   saveState();
   openStartSeasonModal();
@@ -246,6 +267,9 @@ function lazyUpdateAll() {
       if (animal.status !== before) changed = true;
     });
   }
+
+  const questsChanged = checkQuestCooldowns();
+  if (questsChanged) changed = true;
 
   if (changed) saveState();
   return changed;
@@ -696,6 +720,160 @@ function changeSeason(s) {
 }
 
 // ============================================================
+// QUESTS SYSTEM
+// ============================================================
+function getHarvestItems() {
+  const items = [];
+  // Crops
+  for (const pid in PLANTS_DATA) {
+    items.push({
+      key: `harvest_${pid}`,
+      name: PLANTS_DATA[pid].name,
+      emoji: PLANTS_DATA[pid].emoji,
+      sellPrice: PLANTS_DATA[pid].sell_price_per_yield
+    });
+  }
+  // Animals
+  items.push({
+    key: 'harvest_chicken_egg',
+    name: 'Trứng gà',
+    emoji: '🥚',
+    sellPrice: 50
+  });
+  items.push({
+    key: 'harvest_cow_milk',
+    name: 'Sữa bò',
+    emoji: '🥛',
+    sellPrice: 500
+  });
+  return items;
+}
+
+function getRandomQuantity(key, sellPrice) {
+  if (sellPrice >= 500) {
+    return Math.floor(Math.random() * 3) + 1;
+  } else if (sellPrice >= 50) {
+    return Math.floor(Math.random() * 7) + 2;
+  } else if (sellPrice >= 18) {
+    return Math.floor(Math.random() * 5) + 2;
+  } else if (sellPrice >= 12) {
+    return Math.floor(Math.random() * 8) + 3;
+  } else if (sellPrice >= 8) {
+    return Math.floor(Math.random() * 9) + 4;
+  } else {
+    return Math.floor(Math.random() * 11) + 5;
+  }
+}
+
+function getRandomLevel() {
+  return Math.floor(Math.random() * 3) + 1;
+}
+
+function generateRandomQuest(level) {
+  const allHarvest = getHarvestItems();
+  let numItems = 1;
+  let rewardMultiplier = 1.5;
+  if (level === 2) {
+    numItems = 3;
+    rewardMultiplier = 2.0;
+  } else if (level === 3) {
+    numItems = 5;
+    rewardMultiplier = 2.5;
+  }
+  
+  const shuffled = [...allHarvest].sort(() => 0.5 - Math.random());
+  const selectedItems = shuffled.slice(0, numItems);
+  
+  const itemsRequired = selectedItems.map(item => {
+    const qty = getRandomQuantity(item.key, item.sellPrice);
+    return {
+      key: item.key,
+      name: item.name,
+      emoji: item.emoji,
+      qtyRequired: qty,
+      sellPrice: item.sellPrice
+    };
+  });
+  
+  let totalSellValue = 0;
+  itemsRequired.forEach(it => {
+    totalSellValue += it.qtyRequired * it.sellPrice;
+  });
+  
+  const rewardGold = Math.round(totalSellValue * rewardMultiplier);
+  
+  return {
+    id: 'quest_' + Math.random().toString(36).substr(2, 9),
+    level: level,
+    items: itemsRequired,
+    rewardGold: rewardGold,
+    baseValue: totalSellValue,
+    completed: false
+  };
+}
+
+function completeQuest(slotIndex) {
+  const slot = G.quests[slotIndex];
+  if (!slot || !slot.quest || slot.quest.completed) {
+    return { ok: false, msg: 'Nhiệm vụ không hợp lệ hoặc đã hoàn thành!' };
+  }
+  
+  const q = slot.quest;
+  for (const item of q.items) {
+    const playerQty = G.inventory[item.key] || 0;
+    if (playerQty < item.qtyRequired) {
+      return { ok: false, msg: `Thiếu vật phẩm: ${item.emoji} ${item.name} (Cần: ${item.qtyRequired}, Có: ${playerQty})` };
+    }
+  }
+  
+  for (const item of q.items) {
+    G.inventory[item.key] -= item.qtyRequired;
+    if (G.inventory[item.key] <= 0) {
+      delete G.inventory[item.key];
+    }
+  }
+  
+  G.gold += q.rewardGold;
+  slot.quest = generateRandomQuest(getRandomLevel());
+  slot.cooldownUntil = null;
+  
+  saveState();
+  return { ok: true, rewardGold: q.rewardGold };
+}
+
+function resetQuest(slotIndex) {
+  const slot = G.quests[slotIndex];
+  if (!slot || slot.cooldownUntil) {
+    return { ok: false, msg: 'Đang trong thời gian chờ hoặc slot không hợp lệ!' };
+  }
+  
+  const now = Date.now();
+  slot.cooldownUntil = now + 15 * 60 * 1000;
+  slot.quest = null;
+  
+  saveState();
+  return { ok: true };
+}
+
+function checkQuestCooldowns() {
+  let changed = false;
+  const now = Date.now();
+  if (G.quests && G.quests.length > 0) {
+    G.quests.forEach((slot, idx) => {
+      if (slot.cooldownUntil && now >= slot.cooldownUntil) {
+        slot.quest = generateRandomQuest(getRandomLevel());
+        slot.cooldownUntil = null;
+        changed = true;
+      }
+    });
+  }
+  if (changed) {
+    saveState();
+  }
+  return changed;
+}
+
+// ============================================================
 // EXPORT (dùng ở HTML)
 // ============================================================
 window.GAME = {
@@ -705,5 +883,6 @@ window.GAME = {
   lazyUpdateAll, lazyUpdatePlant, calcNetYield, calcGrossYield,
   plantSeed, waterPlant, catchBug, usePesticide, useFertilizer, harvestPlant, removeDead, clearPlot,
   buyItem, sellItem, buyLand, changeSeason,
-  expandBarn, feedAnimal, harvestAnimal, sellAnimal, removeDeadAnimal, canFeedAnimal, cureAnimal, discardItem
+  expandBarn, feedAnimal, harvestAnimal, sellAnimal, removeDeadAnimal, canFeedAnimal, cureAnimal, discardItem,
+  completeQuest, resetQuest, checkQuestCooldowns, generateRandomQuest
 };

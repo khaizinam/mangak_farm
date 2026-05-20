@@ -107,6 +107,16 @@
     </div>
   </div>
 
+  <!-- VIEW: TASKS -->
+  <div id="viewTasks" class="app-view hidden">
+    <div class="sidebar-card p-0 overflow-hidden w-full">
+      <div class="p-4 border-b border-yellow-500 bg-gray-800">
+        <span class="pixel text-xl text-yellow-400">📜 Bảng Nhiệm Vụ</span>
+      </div>
+      <div id="tasksContent" class="p-1" style="min-height: 50vh;"></div>
+    </div>
+  </div>
+
   <!-- VIEW: SETTINGS -->
   <div id="viewSettings" class="app-view hidden">
     <div class="sidebar-card max-w-sm mx-auto mt-4">
@@ -125,21 +135,20 @@
 
 <!-- BOTTOM NAVBAR -->
 <nav class="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 flex justify-around items-center h-16 z-40">
-  <button onclick="switchView('viewFarm')" id="nav-viewFarm" class="nav-btn flex-1 flex flex-col items-center justify-center h-full text-yellow-400 transition">
-    <span class="text-2xl mb-1 leading-none">🌾</span>
-    <span class="text-[10px] font-bold">Nông trại</span>
+  <button onclick="switchView('viewFarm')" id="nav-viewFarm" class="nav-btn flex-1 flex flex-col items-center justify-center h-full text-yellow-400 transition" title="Nông trại">
+    <span class="text-2xl leading-none">🌾</span>
   </button>
-  <button onclick="switchView('viewShop')" id="nav-viewShop" class="nav-btn flex-1 flex flex-col items-center justify-center h-full text-gray-400 transition hover:text-yellow-200">
-    <span class="text-2xl mb-1 leading-none">🏪</span>
-    <span class="text-[10px] font-bold">Cửa hàng</span>
+  <button onclick="switchView('viewShop')" id="nav-viewShop" class="nav-btn flex-1 flex flex-col items-center justify-center h-full text-gray-400 transition hover:text-yellow-200" title="Cửa hàng">
+    <span class="text-2xl leading-none">🏪</span>
   </button>
-  <button onclick="switchView('viewInventory')" id="nav-viewInventory" class="nav-btn flex-1 flex flex-col items-center justify-center h-full text-gray-400 transition hover:text-yellow-200">
-    <span class="text-2xl mb-1 leading-none">🎒</span>
-    <span class="text-[10px] font-bold">Túi đồ</span>
+  <button onclick="switchView('viewInventory')" id="nav-viewInventory" class="nav-btn flex-1 flex flex-col items-center justify-center h-full text-gray-400 transition hover:text-yellow-200" title="Túi đồ">
+    <span class="text-2xl leading-none">🎒</span>
   </button>
-  <button onclick="switchView('viewSettings')" id="nav-viewSettings" class="nav-btn flex-1 flex flex-col items-center justify-center h-full text-gray-400 transition hover:text-yellow-200">
-    <span class="text-2xl mb-1 leading-none">⚙️</span>
-    <span class="text-[10px] font-bold">Cài đặt</span>
+  <button onclick="switchView('viewTasks')" id="nav-viewTasks" class="nav-btn flex-1 flex flex-col items-center justify-center h-full text-gray-400 transition hover:text-yellow-200" title="Nhiệm vụ">
+    <span class="text-2xl leading-none">📜</span>
+  </button>
+  <button onclick="switchView('viewSettings')" id="nav-viewSettings" class="nav-btn flex-1 flex flex-col items-center justify-center h-full text-gray-400 transition hover:text-yellow-200" title="Cài đặt">
+    <span class="text-2xl leading-none">⚙️</span>
   </button>
 </nav>
 
