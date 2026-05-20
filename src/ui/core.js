@@ -298,12 +298,7 @@ export function renderStartSeasonContent() {
 window.renderStartSeasonContent = renderStartSeasonContent;
 
 export function setStartSeason(season) {
-  const res = GAME.setStartSeason(season);
-  if (res.ok) {
-    render();
-    closeStartSeasonModal();
-    toast(`🌱 Bắt đầu nông trại mùa ${SEASON_LABELS[season]}!`, 'success');
-  }
+  GAME.setStartSeason(season);
 }
 window.setStartSeason = setStartSeason;
 
