@@ -7,7 +7,6 @@
 
   /* FARM GRID */
   .plot-cell {
-    width:52px; height:52px;
     border:2px solid #5a3a1a;
     border-radius:6px;
     cursor:pointer;
@@ -36,7 +35,23 @@
   .water-fill { height:100%; border-radius:2px; background:#4fc3f7; transition:width .3s; }
 
   /* TABS */
-  .zone-tab { padding:6px 16px; border-radius:8px 8px 0 0; cursor:pointer; font-weight:700; transition:.2s; }
+  .zone-tab {
+    flex: 1;
+    text-align: center;
+    padding: 6px 4px;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 11px;
+    white-space: nowrap;
+    transition: .2s;
+  }
+  @media (min-width: 640px) {
+    .zone-tab {
+      font-size: 13px;
+      padding: 6px 16px;
+    }
+  }
   .zone-tab.active { background:#4A7C59; color:#fff; }
   .zone-tab:not(.active) { background:#2a2a3e; color:#888; }
   .zone-tab:not(.active):hover { background:#3a3a4e; color:#aaa; }

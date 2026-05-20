@@ -3,7 +3,14 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>🌾 MangaK Farm</title>
+<title>🌾 MangaK Farm - Game Nông Trại Vui Vẻ</title>
+<meta name="description" content="MangaK Farm - Game nông trại mô phỏng vui vẻ trên trình duyệt. Trồng trọt cây trái theo mùa, chăn nuôi gia súc gia cầm, bảo vệ nông sản khỏi sâu bệnh và phát triển trang trại mơ ước của bạn!"/>
+<meta name="keywords" content="MangaK Farm, game nong trai, game nông trại, nông trại vui vẻ, game trồng trọt, chăn nuôi gà bò, game giả lập nông trại, game trình duyệt"/>
+<meta name="robots" content="index, follow"/>
+<meta name="author" content="MangaK Team"/>
+<meta property="og:title" content="🌾 MangaK Farm - Game Nông Trại Vui Vẻ"/>
+<meta property="og:description" content="Trồng trọt cây trái theo mùa, chăn nuôi gia súc gia cầm, bảo vệ nông sản khỏi sâu bệnh và phát triển trang trại mơ ước của bạn! Chơi ngay!"/>
+<meta property="og:type" content="website"/>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="style.css?v=1.0.0">
@@ -60,13 +67,8 @@
   <div id="viewFarm" class="app-view flex flex-col lg:flex-row gap-4">
     <!-- FARM AREA -->
     <div class="flex-1 min-w-0">
-      <div class="flex gap-1 mb-0 overflow-x-auto" id="zoneTabs"></div>
-      <div style="background:#16213e; border:2px solid #2a3a5e; border-radius:0 12px 12px 12px;" class="p-4 md:p-6 overflow-x-auto">
-        <div id="farmGrid" class="grid gap-1 w-max mx-auto" style="grid-template-columns:repeat(6,52px); grid-template-rows:repeat(6,52px);"></div>
-        <div class="mt-4 flex items-center justify-center gap-3" id="buyLandArea">
-          <button class="btn btn-green text-sm" id="buyLandBtn" onclick="handleBuyLand()"></button>
-          <span class="text-xs text-gray-400" id="buyLandInfo"></span>
-        </div>
+      <div class="flex gap-1 mb-2 overflow-x-auto" id="farmSubTabs"></div>
+      <div style="background:#16213e; border:2px solid #2a3a5e; border-radius:12px;" class="p-4 md:p-6 overflow-x-auto" id="farmGridContainer">
       </div>
     </div>
 

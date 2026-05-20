@@ -20,7 +20,7 @@ for (let i = 1; i <= 36; i++) {
 function defaultState() {
   const now = Date.now();
   return {
-    gold: 500,
+    gold: 5000,
     energy: 100,
     season: 'spring',
     game_day: 1,
@@ -30,17 +30,17 @@ function defaultState() {
     inventory: {}, // { plantId: qty, 'fertilizer_1': qty, ... }
     // 3 khu đất, mỗi khu 36 ô (6x6). Mặc định mở 3 ô đầu khu 1
     plots: buildPlots(),
-    // Số batch đã mua (mỗi khu 4 batch = 12 ô, trừ 2 batch đầu free)
-    // plots_unlocked[zoneIndex] = số ô đã mở (3,6,9,12...36)
     plots_unlocked: [3, 0, 0],
-    // Cây đang trồng: { plotKey: userPlant }
     plants: {},
+    animals: [],
+    poultry_capacity: 3,
+    livestock_capacity: 3,
     lastAutoCheck: now,
   };
 }
 
 function buildPlots() {
-  // 3 zones, 36 ô mỗi zone
+  // 3 zones, 36 ô mỗi zone (6x6)
   const plots = {};
   for (let z = 0; z < 3; z++) {
     for (let i = 0; i < 36; i++) {
@@ -74,6 +74,12 @@ function loadState() {
     if (typeof s.needsStartSeason !== 'boolean') s.needsStartSeason = false;
     if (typeof s.energy !== 'number') s.energy = 100;
     if (typeof s.lastEnergyTick !== 'number') s.lastEnergyTick = Date.now();
+    if (!s.animals) s.animals = [];
+    if (typeof s.poultry_capacity !== 'number') s.poultry_capacity = 3;
+    if (typeof s.livestock_capacity !== 'number') s.livestock_capacity = 3;
+
+    // Convert s.animals to BaseAnimal subclasses
+    s.animals = s.animals.map(a => AnimalFactory.create(a.type, a));
 
     // Convert s.plots to Plot instances
     if (!s.plots || Object.keys(s.plots).length === 0) {
@@ -81,7 +87,19 @@ function loadState() {
     } else {
       const newPlots = {};
       for (const k in s.plots) {
-        newPlots[k] = new Plot(s.plots[k]);
+        const parts = k.split('_');
+        if (parts.length === 2 && parseInt(parts[1]) < 36) {
+          newPlots[k] = new Plot(s.plots[k]);
+        }
+      }
+      // Ensure all 36 plots exist
+      for (let z = 0; z < 3; z++) {
+        for (let i = 0; i < 36; i++) {
+          const key = `${z}_${i}`;
+          if (!newPlots[key]) {
+            newPlots[key] = new Plot({ zone: z, index: i, locked: true });
+          }
+        }
       }
       s.plots = newPlots;
     }
@@ -92,7 +110,8 @@ function loadState() {
     } else {
       const newPlants = {};
       for (const k in s.plants) {
-        if (s.plants[k]) {
+        const parts = k.split('_');
+        if (parts.length === 2 && parseInt(parts[1]) < 36 && s.plants[k]) {
           newPlants[k] = PlantFactory.create(s.plants[k].plant_id, s.plants[k]);
         }
       }
@@ -162,7 +181,6 @@ function setStartSeason(season) {
 // ============================================================
 let G = loadState();
 
-// Sync unlocked plots vào plots object
 function syncUnlockedPlots() {
   for (let z = 0; z < 3; z++) {
     const unlocked = G.plots_unlocked[z];
@@ -191,7 +209,7 @@ function calcNetYield(up) {
   return up.calcNetYield();
 }
 
-// Chạy lazy update tất cả cây đang trồng
+// Chạy lazy update tất cả cây đang trồng và vật nuôi
 function lazyUpdateAll() {
   let changed = false;
 
@@ -220,6 +238,15 @@ function lazyUpdateAll() {
     G.plants[key] = G.plants[key].lazyUpdate(Date.now());
     if (G.plants[key].status !== before) changed = true;
   }
+
+  if (G.animals && G.animals.length > 0) {
+    G.animals.forEach(animal => {
+      const before = animal.status;
+      animal.lazyUpdate(now);
+      if (animal.status !== before) changed = true;
+    });
+  }
+
   if (changed) saveState();
   return changed;
 }
@@ -411,7 +438,19 @@ function buyItem(itemType, itemId, qty = 1) {
   let totalCost = 0;
   let inventoryKey = '';
 
-  if (itemType === 'seed') {
+  if (itemType === 'animal') {
+    if (itemId === 'chicken') {
+      const currentQty = G.animals.filter(a => a.type === 'chicken').length;
+      if (currentQty + qty > G.poultry_capacity) return { ok: false, msg: `Chuồng gà không đủ chỗ trống (Còn: ${G.poultry_capacity - currentQty})` };
+      totalCost = 100 * qty;
+    } else if (itemId === 'cow') {
+      const currentQty = G.animals.filter(a => a.type === 'cow').length;
+      if (currentQty + qty > G.livestock_capacity) return { ok: false, msg: `Chuồng bò không đủ chỗ trống (Còn: ${G.livestock_capacity - currentQty})` };
+      totalCost = 200 * qty;
+    } else {
+      return { ok: false, msg: 'Không tìm thấy loại vật nuôi này' };
+    }
+  } else if (itemType === 'seed') {
     const plant = PLANTS_DATA[itemId];
     if (!plant) return { ok: false, msg: 'Không tìm thấy cây' };
     totalCost = plant.buy_price * qty;
@@ -430,11 +469,24 @@ function buyItem(itemType, itemId, qty = 1) {
     if (!item) return { ok: false, msg: 'Không tìm thấy loại thực phẩm này' };
     totalCost = item.buyPrice * qty;
     inventoryKey = `food_${itemId}`;
+  } else if (itemType === 'medicine_animal') {
+    const item = ShopItemRegistry.get('medicine_animal');
+    if (!item) return { ok: false, msg: 'Không tìm thấy thuốc thú y' };
+    totalCost = item.buyPrice * qty;
+    inventoryKey = 'medicine_animal';
   }
 
   if (G.gold < totalCost) return { ok: false, msg: `Không đủ vàng (cần ${totalCost}🪙)` };
   G.gold -= totalCost;
-  G.inventory[inventoryKey] = (G.inventory[inventoryKey] || 0) + qty;
+  
+  if (itemType === 'animal') {
+    for (let i = 0; i < qty; i++) {
+      G.animals.push(AnimalFactory.create(itemId, { purchased_at: Date.now() }));
+    }
+  } else {
+    G.inventory[inventoryKey] = (G.inventory[inventoryKey] || 0) + qty;
+  }
+  
   saveState();
   return { ok: true, cost: totalCost };
 }
@@ -444,7 +496,11 @@ function sellItem(inventoryKey, qty = 1) {
     return { ok: false, msg: 'Không đủ hàng để bán' };
 
   let revenue = 0;
-  if (inventoryKey.startsWith('harvest_')) {
+  if (inventoryKey === 'harvest_chicken_egg') {
+    revenue = 50 * qty;
+  } else if (inventoryKey === 'harvest_cow_milk') {
+    revenue = 500 * qty;
+  } else if (inventoryKey.startsWith('harvest_')) {
     const plantId = inventoryKey.replace('harvest_', '');
     const plant = PLANTS_DATA[plantId];
     if (!plant) return { ok: false, msg: 'Không xác định được loại nông sản' };
@@ -456,6 +512,9 @@ function sellItem(inventoryKey, qty = 1) {
   } else if (inventoryKey === 'pesticide') {
     const item = ShopItemRegistry.get('pesticide');
     revenue = Math.floor((item?.buyPrice || 500) * 0.5 * qty);
+  } else if (inventoryKey === 'medicine_animal') {
+    const item = ShopItemRegistry.get('medicine_animal');
+    revenue = Math.floor((item?.buyPrice || 50) * 0.5 * qty);
   } else if (inventoryKey.startsWith('food_')) {
     const type = inventoryKey.replace('food_', '');
     const item = ShopItemRegistry.get(type);
@@ -471,6 +530,16 @@ function sellItem(inventoryKey, qty = 1) {
   G.gold += revenue;
   saveState();
   return { ok: true, revenue };
+}
+
+function discardItem(inventoryKey, qty = 1) {
+  if (!G.inventory[inventoryKey] || G.inventory[inventoryKey] < qty) {
+    return { ok: false, msg: 'Không đủ vật phẩm trong túi!' };
+  }
+  G.inventory[inventoryKey] -= qty;
+  if (G.inventory[inventoryKey] <= 0) delete G.inventory[inventoryKey];
+  saveState();
+  return { ok: true };
 }
 
 function buyLand(zoneIndex) {
@@ -492,6 +561,134 @@ function buyLand(zoneIndex) {
   return { ok: true, price };
 }
 
+function expandBarn(type) {
+  if (type === 'poultry') {
+    const cap = G.poultry_capacity;
+    if (cap >= 20) return { ok: false, msg: 'Chuồng gà đã đạt sức chứa tối đa (20)' };
+    const price = 12000 * Math.pow(2, cap - 3);
+    if (G.gold < price) return { ok: false, msg: `Cần ${price}🪙 để mở rộng!` };
+    G.gold -= price;
+    G.poultry_capacity += 1;
+    saveState();
+    return { ok: true, price, newCap: G.poultry_capacity };
+  } else if (type === 'livestock') {
+    const cap = G.livestock_capacity;
+    if (cap >= 20) return { ok: false, msg: 'Chuồng bò đã đạt sức chứa tối đa (20)' };
+    const price = 12000 * Math.pow(2, cap - 3);
+    if (G.gold < price) return { ok: false, msg: `Cần ${price}🪙 để mở rộng!` };
+    G.gold -= price;
+    G.livestock_capacity += 1;
+    saveState();
+    return { ok: true, price, newCap: G.livestock_capacity };
+  }
+  return { ok: false, msg: 'Loại chuồng không hợp lệ' };
+}
+
+function feedAnimal(animalId) {
+  const animal = G.animals.find(a => a.id === animalId);
+  if (!animal) return { ok: false, msg: 'Không tìm thấy con vật!' };
+  
+  const feedKey = animal.feed_item;
+  if (!G.inventory[feedKey] || G.inventory[feedKey] < 1) {
+    const foodName = feedKey === 'food_poultry' ? 'thức ăn gia cầm' : 'thức ăn gia súc';
+    return { ok: false, msg: `Không đủ thức ăn trong túi (cần 1 ${foodName})!` };
+  }
+
+  // Tiêu hao năng lượng
+  const eRes = consumeEnergy(1);
+  if (!eRes.ok) return eRes;
+
+  animal.lazyUpdate(Date.now());
+  const res = animal.feed(Date.now());
+  if (!res.ok) return res;
+
+  G.inventory[feedKey] -= 1;
+  if (G.inventory[feedKey] <= 0) delete G.inventory[feedKey];
+  
+  saveState();
+  return { ok: true };
+}
+
+// Cần cho ăn khi <= 50%
+function canFeedAnimal(animal) {
+  animal.lazyUpdate(Date.now());
+  return animal.health <= 50;
+}
+
+function harvestAnimal(animalId) {
+  const animal = G.animals.find(a => a.id === animalId);
+  if (!animal) return { ok: false, msg: 'Không tìm thấy con vật!' };
+
+  // Tiêu hao năng lượng
+  const eRes = consumeEnergy(1);
+  if (!eRes.ok) return eRes;
+
+  animal.lazyUpdate(Date.now());
+  const res = animal.harvest();
+  if (!res.ok) return res;
+
+  const produceKey = animal.produce_item;
+  G.inventory[produceKey] = (G.inventory[produceKey] || 0) + res.qty;
+  
+  saveState();
+  return { ok: true, qty: res.qty, item: produceKey };
+}
+
+function sellAnimal(animalId) {
+  const idx = G.animals.findIndex(a => a.id === animalId);
+  if (idx === -1) return { ok: false, msg: 'Không tìm thấy con vật!' };
+  const animal = G.animals[idx];
+
+  animal.lazyUpdate(Date.now());
+  if (animal.status !== 'adult') {
+    return { ok: false, msg: 'Con vật chưa trưởng thành, không thể bán!' };
+  }
+
+  const price = animal.sell_price;
+  G.gold += price;
+  G.animals.splice(idx, 1);
+  
+  saveState();
+  return { ok: true, price };
+}
+
+function removeDeadAnimal(animalId) {
+  const idx = G.animals.findIndex(a => a.id === animalId);
+  if (idx === -1) return { ok: false, msg: 'Không tìm thấy con vật!' };
+  const animal = G.animals[idx];
+  if (animal.status !== 'dead') {
+    return { ok: false, msg: 'Con vật vẫn còn sống!' };
+  }
+  G.animals.splice(idx, 1);
+  saveState();
+  return { ok: true };
+}
+
+function cureAnimal(animalId) {
+  const animal = G.animals.find(a => a.id === animalId);
+  if (!animal) return { ok: false, msg: 'Không tìm thấy vật nuôi!' };
+  if (animal.status === 'dead') return { ok: false, msg: 'Vật nuôi đã chết!' };
+
+  const medKey = 'medicine_animal';
+  if (!G.inventory[medKey] || G.inventory[medKey] < 1) {
+    return { ok: false, msg: 'Không đủ Thuốc thú y trong túi (cần 1)!' };
+  }
+
+  // Tiêu hao năng lượng
+  const eRes = consumeEnergy(1);
+  if (!eRes.ok) return eRes;
+
+  animal.lazyUpdate(Date.now());
+  animal.sick_started_at = null;
+  animal.medicine_until = Date.now() + 24 * 60 * 60 * 1000;
+
+  G.inventory[medKey]--;
+  if (G.inventory[medKey] <= 0) delete G.inventory[medKey];
+
+  saveState();
+  return { ok: true };
+}
+
 // Change season (for demo — normally would auto by real time)
 function changeSeason(s) {
   G.season = s;
@@ -508,4 +705,5 @@ window.GAME = {
   lazyUpdateAll, lazyUpdatePlant, calcNetYield, calcGrossYield,
   plantSeed, waterPlant, catchBug, usePesticide, useFertilizer, harvestPlant, removeDead, clearPlot,
   buyItem, sellItem, buyLand, changeSeason,
+  expandBarn, feedAnimal, harvestAnimal, sellAnimal, removeDeadAnimal, canFeedAnimal, cureAnimal, discardItem
 };

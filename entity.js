@@ -499,6 +499,12 @@ class PesticideItem extends BaseShopItem {
   }
 }
 
+class MedicineAnimalItem extends BaseShopItem {
+  constructor(buyPrice = 50) {
+    super('medicine_animal', 'Thuốc thú y', '💊', buyPrice, Math.floor(buyPrice * 0.5), 'medicine_animal');
+  }
+}
+
 class ShopItemRegistry {
   static items = {};
 
@@ -519,16 +525,20 @@ class ShopItemRegistry {
 ShopItemRegistry.register(new FoodItem('bread', 'Bánh mì', '🍞', 1000, 10));
 ShopItemRegistry.register(new FoodItem('noodle', 'Mì', '🍜', 1800, 25));
 ShopItemRegistry.register(new FoodItem('rice', 'Cơm', '🍚', 4800, 50));
+ShopItemRegistry.register(new FoodItem('poultry', 'Thức ăn gia cầm', '🌾', 50, 0));
+ShopItemRegistry.register(new FoodItem('livestock', 'Thức ăn gia súc', '🌾', 50, 0));
 ShopItemRegistry.register(new FertilizerItem('1', 'Phân hữu cơ', '💩', 100, 1.2, 0.9));
 ShopItemRegistry.register(new FertilizerItem('2', 'Phân hóa học', '🧪', 250, 1.5, 0.7));
 ShopItemRegistry.register(new FertilizerItem('3', 'Phân thần kỳ', '✨', 600, 2.0, 0.5));
 ShopItemRegistry.register(new PesticideItem(500));
+ShopItemRegistry.register(new MedicineAnimalItem(50));
 
 // Expose Shop Items globally
 window.BaseShopItem = BaseShopItem;
 window.FoodItem = FoodItem;
 window.FertilizerItem = FertilizerItem;
 window.PesticideItem = PesticideItem;
+window.MedicineAnimalItem = MedicineAnimalItem;
 window.ShopItemRegistry = ShopItemRegistry;
 
 // Build FERTILIZER_DATA dynamic mapping for backward compatibility
@@ -572,4 +582,215 @@ for (const id in PlantFactory.classes) {
   };
 }
 window.PLANTS_DATA = PLANTS_DATA;
+
+// ============================================================
+// ANIMAL ENTITIES
+// ============================================================
+class BaseAnimal {
+  constructor(state = {}) {
+    this.id = state.id || 'animal_' + Math.random().toString(36).substr(2, 9);
+    this.type = state.type || this.constructor.type;
+    this.purchased_at = state.purchased_at || Date.now();
+    this.last_fed_at = state.last_fed_at || Date.now();
+    this.last_harvested_at = state.last_harvested_at || Date.now();
+    this.accumulated_production = typeof state.accumulated_production === 'number' ? state.accumulated_production : 0;
+    this.status = state.status || 'baby'; // 'baby', 'adult', 'dead'
+    this.health = typeof state.health === 'number' ? state.health : 100;
+    this.dead_at = state.dead_at || null; // timestamp when health reached 0
+    this.last_calculated_at = state.last_calculated_at || this.purchased_at;
+    this.sick_started_at = state.sick_started_at || null;
+    this.medicine_until = state.medicine_until || null;
+    this.grown_ms = typeof state.grown_ms === 'number' ? state.grown_ms : 0;
+  }
+
+  get name() { return this.constructor.name_label; }
+  get buy_price() { return this.constructor.buy_price; }
+  get sell_price() { return this.constructor.sell_price; }
+  get emoji() { return this.constructor.emoji; }
+  get production_rate() { return this.constructor.production_rate; }
+  get max_production() { return this.constructor.max_production; }
+  get feed_item() { return this.constructor.feed_item; }
+  get produce_item() { return this.constructor.produce_item; }
+
+  toJSON() {
+    return {
+      id: this.id,
+      type: this.type,
+      purchased_at: this.purchased_at,
+      last_fed_at: this.last_fed_at,
+      last_harvested_at: this.last_harvested_at,
+      accumulated_production: this.accumulated_production,
+      status: this.status,
+      health: this.health,
+      dead_at: this.dead_at,
+      last_calculated_at: this.last_calculated_at,
+      sick_started_at: this.sick_started_at,
+      medicine_until: this.medicine_until,
+      grown_ms: this.grown_ms
+    };
+  }
+
+  lazyUpdate(now = Date.now()) {
+    if (this.status === 'dead') return;
+
+    const elapsed = now - this.last_calculated_at;
+    if (elapsed <= 0) return;
+
+    const msPerHour = 3600000;
+    const healthDecreaseRate = 100 / 6; // % per hour
+    const elapsedHours = elapsed / msPerHour;
+
+    // --- Update Health ---
+    if (this.health > 0) {
+      const startHealth = this.health;
+      this.health = Math.max(0, this.health - healthDecreaseRate * elapsedHours);
+      if (this.health <= 0) {
+        const hoursToZero = startHealth / healthDecreaseRate;
+        this.dead_at = this.last_calculated_at + hoursToZero * msPerHour;
+      }
+    }
+
+    // --- Check death from starvation (6h after zero health) ---
+    if (this.dead_at) {
+      const timeSinceZeroHealth = now - this.dead_at;
+      if (timeSinceZeroHealth >= 6 * msPerHour) {
+        this.status = 'dead';
+        this.health = 0;
+        this.last_calculated_at = now;
+        return;
+      }
+    }
+
+    // --- Update Sickness ---
+    if (!this.sick_started_at && (!this.medicine_until || this.medicine_until < now)) {
+      // Calculate active unprotected time range in this tick
+      let unprotectedMs = elapsed;
+      if (this.medicine_until && this.medicine_until > this.last_calculated_at) {
+        unprotectedMs = now - this.medicine_until;
+      }
+      if (unprotectedMs > 0) {
+        const unprotectedHours = unprotectedMs / 3600000;
+        const sickChance = 1 - Math.pow(0.95, unprotectedHours); // 5% chance of getting sick per hour
+        if (Math.random() < sickChance) {
+          const randomOffset = Math.random() * unprotectedMs;
+          this.sick_started_at = Math.max(this.last_calculated_at, now - unprotectedMs) + randomOffset;
+        }
+      }
+    }
+
+    // --- Update Growth Status (4h to adult) ---
+    const growthDuration = 4 * msPerHour;
+    if (this.status === 'baby') {
+      let healthyMs = elapsed;
+      if (this.sick_started_at) {
+        if (this.sick_started_at > this.last_calculated_at && this.sick_started_at < now) {
+          healthyMs = this.sick_started_at - this.last_calculated_at;
+        } else {
+          healthyMs = 0;
+        }
+      }
+      this.grown_ms += healthyMs;
+      if (this.grown_ms >= growthDuration) {
+        this.status = 'adult';
+      }
+    }
+
+    // --- Update Production ---
+    if (this.status === 'adult' && this.health > 0) {
+      let activeHours = elapsedHours;
+      if (this.dead_at) {
+        const activeTime = this.dead_at - this.last_calculated_at;
+        activeHours = Math.max(0, activeTime / msPerHour);
+      }
+      if (this.sick_started_at) {
+        if (this.sick_started_at > this.last_calculated_at && this.sick_started_at < now) {
+          const healthyMs = this.sick_started_at - this.last_calculated_at;
+          activeHours = Math.min(activeHours, Math.max(0, healthyMs / msPerHour));
+        } else {
+          activeHours = 0;
+        }
+      }
+      const produced = activeHours * this.production_rate;
+      this.accumulated_production = Math.min(this.max_production, this.accumulated_production + produced);
+    }
+
+    // --- Update Lifetime (14 days = 336h) ---
+    const age = now - this.purchased_at;
+    const maxLifespan = 14 * 24 * msPerHour;
+    if (age >= maxLifespan) {
+      this.status = 'dead';
+    }
+
+    this.last_calculated_at = now;
+  }
+
+  feed(now = Date.now()) {
+    if (this.health > 50) {
+      return { ok: false, msg: 'Sinh lực vẫn trên 50%, chưa thể cho ăn!' };
+    }
+    this.health = 100;
+    this.last_fed_at = now;
+    this.dead_at = null;
+    this.last_calculated_at = now;
+    return { ok: true };
+  }
+
+  harvest() {
+    if (this.status === 'dead') {
+      return { ok: false, msg: 'Thú nuôi đã chết, không thể thu hoạch!' };
+    }
+    if (this.status === 'baby') {
+      return { ok: false, msg: 'Thú nuôi còn non, chưa thể sản xuất!' };
+    }
+    const qty = Math.floor(this.accumulated_production);
+    if (qty <= 0) {
+      return { ok: false, msg: 'Chưa có sản phẩm tích lũy!' };
+    }
+    this.accumulated_production = 0;
+    this.last_harvested_at = Date.now();
+    return { ok: true, qty };
+  }
+}
+
+class ChickenAnimal extends BaseAnimal {
+  static type = 'chicken';
+  static name_label = 'Gà';
+  static buy_price = 100;
+  static sell_price = 200;
+  static emoji = '🐔';
+  static production_rate = 20; // 20 trứng / giờ
+  static max_production = 20; // tối đa tích lũy 20
+  static feed_item = 'food_poultry';
+  static produce_item = 'harvest_chicken_egg';
+}
+
+class CowAnimal extends BaseAnimal {
+  static type = 'cow';
+  static name_label = 'Bò';
+  static buy_price = 200;
+  static sell_price = 400;
+  static emoji = '🐮';
+  static production_rate = 5; // 5 sữa bò / giờ
+  static max_production = 5; // tối đa tích lũy 5
+  static feed_item = 'food_livestock';
+  static produce_item = 'harvest_cow_milk';
+}
+
+class AnimalFactory {
+  static classes = {
+    chicken: ChickenAnimal,
+    cow: CowAnimal
+  };
+  static create(type, state = {}) {
+    const Cls = this.classes[type];
+    if (!Cls) return new BaseAnimal(state);
+    return new Cls(state);
+  }
+}
+
+window.BaseAnimal = BaseAnimal;
+window.ChickenAnimal = ChickenAnimal;
+window.CowAnimal = CowAnimal;
+window.AnimalFactory = AnimalFactory;
+
 

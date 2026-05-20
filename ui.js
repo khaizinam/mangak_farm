@@ -38,9 +38,9 @@ function startAutoRefresh() {
     updateGold();
     updateSeasonDisplay();
     updateDayDisplay();
-    renderGrid();
+    renderFarmGridArea();
     renderSidebar();
-    if (changed) toast('🔄 Trạng thái cây đã cập nhật!', 'info');
+    if (changed) toast('🔄 Trạng thái nông trại đã cập nhật!', 'info');
     if (seasonChanged) toast(`🍂 Chuyển sang ${SEASON_LABELS[G.season]}`, 'success');
     document.getElementById('refreshStatus').textContent = `🔄 Sync: ${new Date().toLocaleTimeString('vi')}`;
   }, 10000);
@@ -49,122 +49,196 @@ function startAutoRefresh() {
 // ============================================================
 // RENDER
 // ============================================================
+let currentFarmTab = 'crops'; // 'crops', 'poultry', 'livestock'
+
 function render() {
   updateSeasonClock();
   lazyUpdateAll();
-  renderZoneTabs();
-  renderGrid();
+  renderFarmSubTabs();
+  renderFarmGridArea();
   renderSidebar();
   updateGold();
   updateSeasonDisplay();
   updateDayDisplay();
-  renderBuyLand();
 }
 
-function updateGold() {
-  document.getElementById('goldDisplay').textContent = G.gold.toLocaleString('vi');
-  const energyEl = document.getElementById('energyDisplay');
-  if (energyEl) {
-    energyEl.textContent = G.energy;
-  }
-}
-
-function renderZoneTabs() {
-  const names = ['🏡 Khu 1', '🌿 Khu 2', '🌳 Khu 3'];
-  document.getElementById('zoneTabs').innerHTML = names.map((n,i) => `
-    <div class="zone-tab ${i===currentZone?'active':''}" data-zone-id="${i}">${n}
-      <span class="text-xs ml-1 opacity-70">${G.plots_unlocked[i]}/36</span>
+function renderFarmSubTabs() {
+  const tabs = [
+    { id: 'crops', label: '🏡 Trồng trọt' },
+    { id: 'poultry', label: '🐔 Gia cầm' },
+    { id: 'livestock', label: '🐮 Gia súc' }
+  ];
+  const container = document.getElementById('farmSubTabs');
+  if (!container) return;
+  container.innerHTML = tabs.map(t => `
+    <div class="zone-tab ${t.id === currentFarmTab ? 'active' : ''}" onclick="switchFarmTab('${t.id}')">
+      ${t.label}
     </div>
   `).join('');
 }
 
-function switchZone(z) {
-  currentZone = z;
+function switchFarmTab(tabId) {
+  currentFarmTab = tabId;
   selectedPlot = null;
-  renderZoneTabs();
-  renderGrid();
-  renderSidebar();
-  renderBuyLand();
+  renderFarmSubTabs();
+  renderFarmGridArea();
 }
 
-function renderGrid() {
-  const grid = document.getElementById('farmGrid');
-  let html = '';
-  for (let i = 0; i < 36; i++) {
-    const key = `${currentZone}_${i}`;
-    const plot = G.plots[key];
-    const up = G.plants[key];
-    const isSelected = selectedPlot === key;
-
-    if (plot.locked) {
-      html += `<div class="plot-cell locked" title="Ô đất bị khóa">🔒</div>`;
-      continue;
-    }
-
-    if (!up) {
-      html += `<div class="plot-cell empty ${isSelected?'ring-2 ring-yellow-400':''}"
-        data-plot-key="${key}" title="Ô trống - click để trồng cây">🟫</div>`;
-      continue;
-    }
-
-    // Has plant
-    const plant = PLANTS_DATA[up.plant_id];
-    const waterPct = Math.round(up.current_water);
-    const hasBug = !!up.bug_started_at;
-    const statusClass = up.status === 0 ? 'growing' : up.status === 1 ? 'ready' : 'dead';
-    const bugClass = hasBug ? 'bug' : '';
-    const grossY = calcGrossYield(up, plant);
-    const netY = calcNetYield(up);
-    const dmgPct = Math.round((1 - netY/grossY)*100);
-
-    const mainEmoji = up.status === 0 ? '🌱' : up.status === 1 ? plant.emoji : '💀';
-    const statusEmoji = up.status === 1 ? '✨' : '';
-
-    html += `<div class="plot-cell ${statusClass} ${bugClass} ${isSelected?'ring-2 ring-yellow-400':''}"
-      data-plot-key="${key}" title="${plant.name}">
-      
-      <div class="flex-1 flex items-center justify-center w-full">
-        <span style="font-size:24px; line-height:1; display:block;">${mainEmoji}</span>
-      </div>
-
-      ${(statusEmoji || hasBug) ? `<div class="absolute -top-1 -right-1 text-[12px] bg-gray-900 rounded-full px-1 border border-gray-700 shadow-lg z-10">${statusEmoji}${hasBug?'🐛':''}</div>` : ''}
-      
-      <div class="water-bar mb-1" style="width:80%"><div class="water-fill" style="width:${waterPct}%"></div></div>
-    </div>`;
-  }
-  grid.innerHTML = html;
-}
-
-function renderBuyLand() {
-  const btn = document.getElementById('buyLandBtn');
-  const info = document.getElementById('buyLandInfo');
-  const z = currentZone;
-  const current = G.plots_unlocked[z];
+function renderFarmGridArea() {
+  const container = document.getElementById('farmGridContainer');
+  if (!container) return;
   
-  if (z > 0 && G.plots_unlocked[z - 1] < 36) {
-    btn.style.display = 'none';
-    info.textContent = `Yêu cầu mở hết Khu ${z} trước`;
-    return;
+  if (currentFarmTab === 'crops') {
+    container.innerHTML = renderCropsView();
+  } else if (currentFarmTab === 'poultry') {
+    container.innerHTML = renderBarnView('poultry');
+  } else if (currentFarmTab === 'livestock') {
+    container.innerHTML = renderBarnView('livestock');
   }
+}
 
-  if (current >= 36) {
-    btn.style.display = 'none';
-    info.textContent = 'Khu đất đã mở hết';
-    return;
+function renderCropsView() {
+  let html = '<div class="space-y-6">';
+  for (let z = 0; z < 3; z++) {
+    const unlocked = G.plots_unlocked[z];
+    const prevUnlocked = z > 0 ? G.plots_unlocked[z-1] : 36;
+    const isZoneLocked = z > 0 && prevUnlocked < 36;
+
+    html += `
+      <div class="bg-gray-800/80 border border-gray-700 rounded-2xl p-4 relative shadow-lg ${isZoneLocked ? 'opacity-50' : ''}">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+          <span class="font-bold text-yellow-400 text-sm sm:text-base flex items-center gap-1.5">
+            <span>🏡 Khu đất ${z + 1}</span>
+            <span class="text-xs bg-gray-900 border border-gray-700 px-2 py-0.5 rounded-full text-cyan-400 font-mono">
+              ${unlocked}/36 ô đã mở
+            </span>
+          </span>
+    `;
+
+    if (isZoneLocked) {
+      html += `
+          <span class="text-xs text-red-400 font-semibold">🔒 Yêu cầu mở hết Khu ${z} trước</span>
+        </div>
+        <div class="flex items-center justify-center h-48 bg-gray-900/50 rounded-xl border border-dashed border-gray-700">
+          <div class="text-center">
+            <span class="text-4xl block mb-2">🔒</span>
+            <span class="text-xs text-gray-500 font-bold uppercase tracking-wider">Khu đất chưa khai thác</span>
+          </div>
+        </div>
+      </div>
+      `;
+      continue;
+    }
+
+    const totalUnlocked = G.plots_unlocked.reduce((a, b) => a + b, 0);
+    const pIdx = Math.floor(totalUnlocked / 3);
+    const price = LAND_PRICES[pIdx] ?? 999999;
+
+    if (unlocked < 36) {
+      html += `
+          <button class="btn btn-green text-xs font-bold py-1.5 px-3 shadow-md" onclick="handleBuyLand(${z})">
+            🏗️ Mở thêm 3 ô (+${price}🪙)
+          </button>
+      `;
+    } else {
+      html += `
+          <span class="text-xs text-gray-500 font-bold">✓ Đã mở hết</span>
+      `;
+    }
+
+    html += `
+        </div>
+        <!-- 2x2 Grid of 3x3 Plot blocks -->
+        <div class="grid grid-cols-2 gap-3 max-w-full mx-auto" style="width: max-content;">
+    `;
+
+    // 4 quadrants: top-left, top-right, bottom-left, bottom-right
+    const quadrants = [
+      { rStart: 0, rEnd: 3, cStart: 0, cEnd: 3 },
+      { rStart: 0, rEnd: 3, cStart: 3, cEnd: 6 },
+      { rStart: 3, rEnd: 6, cStart: 0, cEnd: 3 },
+      { rStart: 3, rEnd: 6, cStart: 3, cEnd: 6 }
+    ];
+
+    quadrants.forEach(q => {
+      html += `<div class="grid grid-cols-3 gap-1">`;
+      for (let r = q.rStart; r < q.rEnd; r++) {
+        for (let c = q.cStart; c < q.cEnd; c++) {
+          const i = r * 6 + c;
+          const key = `${z}_${i}`;
+          const plot = G.plots[key];
+          const up = G.plants[key];
+          const isSelected = selectedPlot === key;
+          const cellSizeClass = "w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14";
+
+          if (!plot || plot.locked) {
+            html += `
+              <div class="plot-cell locked select-none flex items-center justify-center border border-gray-700/60 rounded-lg bg-gray-950/80 text-lg cursor-not-allowed ${cellSizeClass}" title="Ô đất bị khóa">
+                🔒
+              </div>
+            `;
+            continue;
+          }
+
+          if (!up) {
+            html += `
+              <div class="plot-cell empty select-none flex items-center justify-center border border-gray-700 rounded-lg bg-amber-950/40 text-2xl cursor-pointer hover:border-yellow-400 transition-all ${isSelected ? 'ring-2 ring-yellow-400 border-yellow-400' : ''} ${cellSizeClass}"
+                data-plot-key="${key}" title="Ô trống - click để trồng cây" onclick="selectPlotCell('${key}')">
+                🟫
+              </div>
+            `;
+            continue;
+          }
+
+          const plant = PLANTS_DATA[up.plant_id];
+          const waterPct = Math.round(up.current_water);
+          const hasBug = !!up.bug_started_at;
+          const statusClass = up.status === 0 ? 'growing' : up.status === 1 ? 'ready' : 'dead';
+          const bugClass = hasBug ? 'bug' : '';
+          const mainEmoji = up.status === 0 ? '🌱' : up.status === 1 ? plant.emoji : '💀';
+          const statusEmoji = up.status === 1 ? '✨' : '';
+
+          html += `
+            <div class="plot-cell ${statusClass} ${bugClass} select-none flex flex-col justify-between p-1 border border-gray-700 rounded-lg bg-amber-950/40 cursor-pointer relative hover:border-yellow-400 transition-all ${isSelected ? 'ring-2 ring-yellow-400 border-yellow-400' : ''} ${cellSizeClass}"
+              data-plot-key="${key}" title="${plant.name}" onclick="selectPlotCell('${key}')">
+              
+              <div class="flex-1 flex items-center justify-center w-full">
+                <span class="text-xl sm:text-2xl display:block filter drop-shadow">${mainEmoji}</span>
+              </div>
+
+              ${(statusEmoji || hasBug) ? `<div class="absolute -top-1 -right-1 text-[10px] bg-gray-900 rounded-full px-1 border border-gray-700 shadow-lg z-10">${statusEmoji}${hasBug ? '🐛' : ''}</div>` : ''}
+              
+              <div style="width: 80%; height: 5px; background: rgba(0,0,0,0.65); border-radius: 9999px; overflow: hidden; margin: 2px auto 0 auto; flex-shrink: 0;">
+                <div style="width: ${waterPct}%; height: 5px; background: #4fc3f7; border-radius: 9999px; transition: width 0.3s;"></div>
+              </div>
+            </div>
+          `;
+        }
+      }
+      html += `</div>`;
+    });
+
+    html += `
+        </div>
+      </div>
+    `;
   }
-  const totalUnlocked = G.plots_unlocked.reduce((a, b) => a + b, 0);
-  const pIdx = Math.floor(totalUnlocked / 3);
-  const price = LAND_PRICES[pIdx] ?? 999999;
-  btn.style.display = '';
-  btn.textContent = `🏗️ Mua thêm 3 ô (+${price}🪙)`;
-  info.textContent = `${current}/36 ô đã mở`;
+  html += '</div>';
+  return html;
+}
+
+function selectPlotCell(key) {
+  selectedPlot = key;
+  currentModalScreen = 'details';
+  document.getElementById('plotModal').style.display = 'flex';
+  renderPlotModalContent();
 }
 
 function closePlotModal() {
   selectedPlot = null;
   currentModalScreen = 'details';
   document.getElementById('plotModal').style.display = 'none';
-  renderGrid();
+  renderFarmGridArea();
 }
 
 function renderSidebar() {
@@ -226,7 +300,7 @@ function renderPlotModalContent() {
   if (up.status === 2) {
     btnHtml = `
       <button class="btn btn-gray w-full py-2" data-action="remove-dead" data-plot="${selectedPlot}">🗑️ Dọn cây chết</button>
-      <button class="btn btn-red w-full py-2" data-action="clear-plot" data-plot="${selectedPlot}">⛏️ Cuốc đất (Dọn đất)</button>
+      <button class="btn btn-red w-full py-2" data-action="clear-plot" data-plot="${selectedPlot}">⛏️ Cuốc đất</button>
     `;
   } else {
     // 1. Tưới nước (Water)
@@ -242,10 +316,10 @@ function renderPlotModalContent() {
     btnHtml += `<button class="btn btn-green w-full py-2" data-action="catch-bug" data-plot="${selectedPlot}">👋 Bắt sâu thủ công</button>`;
     
     // 5. Phun thuốc
-    btnHtml += `<button class="btn btn-purple w-full py-2" data-action="pesticide-plant" data-plot="${selectedPlot}">🧪 Phun thuốc diệt sâu (Còn x${G.inventory['pesticide'] || 0})</button>`;
+    btnHtml += `<button class="btn btn-purple w-full py-2" data-action="pesticide-plant" data-plot="${selectedPlot}">🧪 T.diệt sâu (Còn x${G.inventory['pesticide'] || 0})</button>`;
     
     // 6. Cuốc đất
-    btnHtml += `<button class="btn btn-red w-full py-2" data-action="clear-plot" data-plot="${selectedPlot}">⛏️ Cuốc đất (Huỷ cây)</button>`;
+    btnHtml += `<button class="btn btn-red w-full py-2" data-action="clear-plot" data-plot="${selectedPlot}">⛏️ Cuốc đất</button>`;
   }
 
   contentEl.innerHTML = `
@@ -480,7 +554,7 @@ function selectPlot(key) {
   }
   selectedPlot = key;
   currentModalScreen = 'details';
-  renderGrid();
+  render();
   document.getElementById('plotModal').style.display = 'flex';
   renderPlotModalContent();
 }
@@ -581,6 +655,11 @@ function renderBuyTab() {
   Object.values(PLANTS_DATA).filter(p=>p.season===G.season).forEach(p => {
     items.push({ type: 'seed', id: p.id, data: p });
   });
+  
+  // Add animals
+  items.push({ type: 'animal', id: 'chicken', data: { name: 'Gà con', buy_price: 100, emoji: '🐔' } });
+  items.push({ type: 'animal', id: 'cow', data: { name: 'Bò con', buy_price: 200, emoji: '🐮' } });
+
   [1,2,3].forEach(f => {
     items.push({ type: 'fertilizer', id: f.toString(), data: FERTILIZER_DATA[f] });
   });
@@ -590,6 +669,11 @@ function renderBuyTab() {
   items.push({ type: 'food', id: 'bread', data: { name: 'Bánh mì', price: 1000, emoji: '🍞', energy: 10 } });
   items.push({ type: 'food', id: 'noodle', data: { name: 'Mì', price: 1800, emoji: '🍜', energy: 25 } });
   items.push({ type: 'food', id: 'rice', data: { name: 'Cơm', price: 4800, emoji: '🍚', energy: 50 } });
+  
+  // Animal feeds
+  items.push({ type: 'food', id: 'poultry', data: { name: 'Thức ăn gia cầm', price: 50, emoji: '🌾', energy: 0 } });
+  items.push({ type: 'food', id: 'livestock', data: { name: 'Thức ăn gia súc', price: 50, emoji: '🌾', energy: 0 } });
+  items.push({ type: 'medicine_animal', id: 'medicine_animal', data: { name: 'Thuốc thú y', price: 50, emoji: '💊' } });
 
   if (!selectedShopItemId) selectedShopItemId = items[0].type + '_' + items[0].id;
 
@@ -599,14 +683,15 @@ function renderBuyTab() {
   // Group by category for better UI
   const categories = [
     { title: '🌱 Hạt giống', filter: i => i.type === 'seed' },
-    { title: '🍞 Thực phẩm hồi năng lượng', filter: i => i.type === 'food' },
-    { title: '🌿 Phân bón & Thuốc', filter: i => i.type === 'fertilizer' || i.type === 'pesticide' }
+    { title: '🐔 Gia súc & Gia cầm', filter: i => i.type === 'animal' },
+    { title: '🍞 Thực phẩm hồi năng lượng (Người)', filter: i => i.type === 'food' && i.id !== 'poultry' && i.id !== 'livestock' },
+    { title: '🌾 Thức ăn vật nuôi & Hỗ trợ', filter: i => i.type === 'fertilizer' || i.type === 'pesticide' || i.type === 'medicine_animal' || i.id === 'poultry' || i.id === 'livestock' }
   ];
 
   categories.forEach(cat => {
     const catItems = items.filter(cat.filter);
     if (catItems.length > 0) {
-      listHtml += `<div class="font-bold text-yellow-400 mb-2 mt-4 first:mt-1">${cat.title}</div>`;
+      listHtml += `<div class="font-bold text-yellow-400 mb-2 mt-4 first:mt-1 text-xs uppercase tracking-wider">${cat.title}</div>`;
       catItems.forEach(item => {
         const p = item.data;
         const isSelected = selectedShopItemId === `${item.type}_${item.id}`;
@@ -615,12 +700,20 @@ function renderBuyTab() {
         let descText = '';
         if (item.type === 'seed') {
           descText = `Hạt giống · Mùa ${SEASON_LABELS[p.season]}`;
+        } else if (item.type === 'animal') {
+          descText = `Vật nuôi nuôi ở Farm`;
         } else if (item.type === 'food') {
-          descText = `Thực phẩm · Hồi +${p.energy}⚡`;
+          if (item.id === 'poultry' || item.id === 'livestock') {
+            descText = `Thức ăn cho vật nuôi`;
+          } else {
+            descText = `Thực phẩm · Hồi +${p.energy}⚡`;
+          }
         } else if (item.type === 'fertilizer') {
           descText = 'Phân bón tăng trưởng';
         } else if (item.type === 'pesticide') {
           descText = 'Thuốc phòng trừ sâu hại';
+        } else if (item.type === 'medicine_animal') {
+          descText = 'Thuốc thú y trị bệnh';
         }
 
         listHtml += `
@@ -656,6 +749,10 @@ function renderShopItemDetails(itemId) {
   Object.values(PLANTS_DATA).filter(p=>p.season===G.season).forEach(p => {
     items.push({ type: 'seed', id: p.id, data: p });
   });
+
+  items.push({ type: 'animal', id: 'chicken', data: { name: 'Gà', buy_price: 100, emoji: '🐔' } });
+  items.push({ type: 'animal', id: 'cow', data: { name: 'Bò', buy_price: 200, emoji: '🐮' } });
+
   [1,2,3].forEach(f => {
     items.push({ type: 'fertilizer', id: f.toString(), data: FERTILIZER_DATA[f] });
   });
@@ -665,6 +762,10 @@ function renderShopItemDetails(itemId) {
   items.push({ type: 'food', id: 'bread', data: { name: 'Bánh mì', price: 1000, emoji: '🍞', energy: 10 } });
   items.push({ type: 'food', id: 'noodle', data: { name: 'Mì', price: 1800, emoji: '🍜', energy: 25 } });
   items.push({ type: 'food', id: 'rice', data: { name: 'Cơm', price: 4800, emoji: '🍚', energy: 50 } });
+  
+  items.push({ type: 'food', id: 'poultry', data: { name: 'Thức ăn gia cầm', price: 50, emoji: '🌾', energy: 0 } });
+  items.push({ type: 'food', id: 'livestock', data: { name: 'Thức ăn gia súc', price: 50, emoji: '🌾', energy: 0 } });
+  items.push({ type: 'medicine_animal', id: 'medicine_animal', data: { name: 'Thuốc thú y', price: 50, emoji: '💊' } });
 
   const selectedItem = items.find(i => `${i.type}_${i.id}` === itemId);
   if (!selectedItem) return '';
@@ -690,6 +791,30 @@ function renderShopItemDetails(itemId) {
       <div class="mt-4 md:mt-auto flex flex-col gap-2">
         <button class="btn btn-green w-full py-2.5 font-bold" onclick="shopBuy('seed', '${p.id}', 1)">Mua x1 (${p.buy_price}🪙)</button>
         <button class="btn btn-green w-full py-2.5 font-bold" onclick="shopBuy('seed', '${p.id}', 5)">Mua x5 (${p.buy_price * 5}🪙)</button>
+      </div>
+    `;
+  } else if (selectedItem.type === 'animal') {
+    const a = selectedItem.data;
+    const isChicken = selectedItem.id === 'chicken';
+    const sellPrice = isChicken ? 200 : 400;
+    const capacityText = isChicken ? `Gà con (Chuồng gia cầm, capacity: ${G.animals.filter(an => an.type === 'chicken').length}/${G.poultry_capacity})` : `Bò con (Chuồng gia súc, capacity: ${G.animals.filter(an => an.type === 'cow').length}/${G.livestock_capacity})`;
+    
+    detailHtml += `
+      <div class="text-center">
+        <div class="text-6xl mb-2">${a.emoji}</div>
+        <div class="text-xl font-bold text-yellow-400">${a.name}</div>
+        <div class="text-sm text-gray-400">${capacityText}</div>
+      </div>
+      <div class="bg-gray-800 p-3 rounded-lg border border-gray-700 text-xs space-y-2 leading-relaxed">
+        <div class="flex justify-between border-b border-gray-700 pb-1"><span>Giá mua:</span> <span class="text-yellow-400 font-bold">${a.buy_price}🪙</span></div>
+        <div class="flex justify-between border-b border-gray-700 pb-1"><span>Giá bán (lớn):</span> <span class="text-green-400 font-bold">${sellPrice}🪙</span></div>
+        <div class="flex justify-between border-b border-gray-700 pb-1"><span>Thời gian trưởng thành:</span> <span class="text-blue-400">4 giờ</span></div>
+        <div class="flex justify-between border-b border-gray-700 pb-1"><span>Tuổi thọ:</span> <span class="text-green-400">14 ngày</span></div>
+        <div class="flex justify-between border-b border-gray-700 pb-1"><span>Sản lượng:</span> <span class="text-cyan-400">${isChicken ? '20 trứng/giờ' : '5 sữa bò/giờ'}</span></div>
+        <div class="text-[11px] text-gray-400 mt-1">💡 Cần cho ăn cứ mỗi 6 giờ bằng <b>${isChicken ? 'thức ăn gia cầm' : 'thức ăn gia súc'}</b> (khi sinh lực <= 50%). Nếu sinh lực về 0 và không cho ăn trong 6 giờ, vật nuôi sẽ chết.</div>
+      </div>
+      <div class="mt-4 md:mt-auto flex flex-col gap-2">
+        <button class="btn btn-green w-full py-2.5 font-bold" onclick="shopBuy('animal', '${selectedItem.id}', 1)">Mua x1 (${a.buy_price}🪙)</button>
       </div>
     `;
   } else if (selectedItem.type === 'fertilizer') {
@@ -735,22 +860,50 @@ function renderShopItemDetails(itemId) {
     `;
   } else if (selectedItem.type === 'food') {
     const f = selectedItem.data;
+    const isAnimalFeed = selectedItem.id === 'poultry' || selectedItem.id === 'livestock';
+    
     detailHtml += `
       <div class="text-center">
         <div class="text-6xl mb-2">${f.emoji}</div>
         <div class="text-xl font-bold text-yellow-400">${f.name}</div>
-        <div class="text-sm text-gray-400">Thực phẩm hồi năng lượng</div>
+        <div class="text-sm text-gray-400">${isAnimalFeed ? 'Thức ăn cho vật nuôi' : 'Thực phẩm hồi năng lượng'}</div>
       </div>
       <div class="bg-gray-800 p-3 rounded-lg border border-gray-700 text-sm space-y-2">
         <div class="flex justify-between border-b border-gray-700 pb-1"><span>Giá mua:</span> <span class="text-yellow-400 font-bold">${f.price}🪙</span></div>
         <div class="flex flex-col mt-2">
           <span class="text-gray-400 mb-1 font-bold">Tác dụng:</span>
-          <span class="text-cyan-400 font-bold">+${f.energy} ⚡ Năng lượng</span>
+          ${isAnimalFeed ? `
+            <span class="text-green-400 font-bold">Hồi phục 100% sinh lực cho vật nuôi</span>
+            <span class="text-gray-400 text-xs mt-1">Dùng khi sinh lực của vật nuôi <= 50%</span>
+          ` : `
+            <span class="text-cyan-400 font-bold">+${f.energy} ⚡ Năng lượng cho người chơi</span>
+          `}
         </div>
       </div>
       <div class="mt-4 md:mt-auto flex flex-col gap-2">
         <button class="btn btn-green w-full py-2.5 font-bold" onclick="shopBuy('food', '${selectedItem.id}', 1)">Mua x1 (${f.price}🪙)</button>
         <button class="btn btn-green w-full py-2.5 font-bold" onclick="shopBuy('food', '${selectedItem.id}', 5)">Mua x5 (${f.price * 5}🪙)</button>
+      </div>
+    `;
+  } else if (selectedItem.type === 'medicine_animal') {
+    const f = selectedItem.data;
+    detailHtml += `
+      <div class="text-center">
+        <div class="text-6xl mb-2">${f.emoji}</div>
+        <div class="text-xl font-bold text-yellow-400">${f.name}</div>
+        <div class="text-sm text-gray-400">Thuốc hỗ trợ điều trị và phòng bệnh cho vật nuôi</div>
+      </div>
+      <div class="bg-gray-800 p-3 rounded-lg border border-gray-700 text-sm space-y-2">
+        <div class="flex justify-between border-b border-gray-700 pb-1"><span>Giá mua:</span> <span class="text-yellow-400 font-bold">${f.price}🪙</span></div>
+        <div class="flex flex-col mt-2">
+          <span class="text-gray-400 mb-1 font-bold">Tác dụng:</span>
+          <span class="text-green-400 font-bold">Trị bệnh ngay lập tức cho vật nuôi</span>
+          <span class="text-blue-400">Bảo vệ vật nuôi không bị nhiễm bệnh trong 24h</span>
+        </div>
+      </div>
+      <div class="mt-4 md:mt-auto flex flex-col gap-2">
+        <button class="btn btn-green w-full py-2.5 font-bold" onclick="shopBuy('medicine_animal', '${selectedItem.id}', 1)">Mua x1 (${f.price}🪙)</button>
+        <button class="btn btn-green w-full py-2.5 font-bold" onclick="shopBuy('medicine_animal', '${selectedItem.id}', 5)">Mua x5 (${f.price * 5}🪙)</button>
       </div>
     `;
   }
@@ -784,15 +937,19 @@ function selectShopItem(id) {
 
 function renderSellTab() {
   const inv = G.inventory;
-  const items = Object.keys(inv).filter(k => inv[k] > 0);
+  const items = Object.keys(inv).filter(k => inv[k] > 0 && k.startsWith('harvest_'));
   if (items.length === 0) {
-    return `<div class="text-center py-8 text-gray-400"><div class="text-4xl mb-2">🎒</div>Túi trống, không có gì để bán</div>`;
+    return `<div class="text-center py-8 text-gray-400"><div class="text-4xl mb-2">🎒</div>Không có sản phẩm thu hoạch nào để bán</div>`;
   }
 
   let html = `<div class="grid grid-cols-2 md:grid-cols-3 gap-3 p-1">`;
   items.forEach(k => {
     let name = k, price = 0, emoji = '📦';
-    if (k.startsWith('harvest_')) {
+    if (k === 'harvest_chicken_egg') {
+      name = 'Trứng gà'; price = 50; emoji = '🥚';
+    } else if (k === 'harvest_cow_milk') {
+      name = 'Sữa bò'; price = 500; emoji = '🥛';
+    } else if (k.startsWith('harvest_')) {
       const p = PLANTS_DATA[k.replace('harvest_','')];
       if (p) { name = p.name; price = p.sell_price_per_yield; emoji = p.emoji; }
     } else if (k.startsWith('fertilizer_')) {
@@ -801,6 +958,18 @@ function renderSellTab() {
       if (fd) { name = fd.name; price = Math.floor(fd.price*0.5); emoji = fd.emoji; }
     } else if (k === 'pesticide') {
       name = 'Thuốc trừ sâu'; price = Math.floor(PESTICIDE_PRICE*0.5); emoji = '🧪';
+    } else if (k === 'food_bread') {
+      name = 'Bánh mì'; price = 500; emoji = '🍞';
+    } else if (k === 'food_noodle') {
+      name = 'Mì'; price = 900; emoji = '🍜';
+    } else if (k === 'food_rice') {
+      name = 'Cơm'; price = 2400; emoji = '🍚';
+    } else if (k === 'food_poultry') {
+      name = 'Thức ăn gia cầm'; price = 25; emoji = '🌾';
+    } else if (k === 'food_livestock') {
+      name = 'Thức ăn gia súc'; price = 25; emoji = '🌾';
+    } else if (k === 'medicine_animal') {
+      name = 'Thuốc thú y'; price = 25; emoji = '💊';
     } else if (PLANTS_DATA[k]) {
       const p = PLANTS_DATA[k];
       name = p.name + ' (hạt giống)'; price = Math.floor(p.buy_price*0.5); emoji = p.emoji;
@@ -877,7 +1046,11 @@ function renderInventoryContent() {
   let gridHtml = `<div class="w-full md:w-3/5 grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 content-start pr-2 overflow-y-auto" style="max-height: 50vh;">`;
   items.forEach(k => {
     let name=k, emoji='📦', type='Khác';
-    if (k.startsWith('harvest_')) {
+    if (k === 'harvest_chicken_egg') {
+      name='Trứng gà';emoji='🥚';type='Nông sản';
+    } else if (k === 'harvest_cow_milk') {
+      name='Sữa bò';emoji='🥛';type='Nông sản';
+    } else if (k.startsWith('harvest_')) {
       const p=PLANTS_DATA[k.replace('harvest_','')];
       if(p){name=p.name;emoji=p.emoji;type='Nông sản';}
     } else if (k.startsWith('fertilizer_')) {
@@ -894,6 +1067,12 @@ function renderInventoryContent() {
       name='Mì';emoji='🍜';type='Thực phẩm';
     } else if (k==='food_rice') {
       name='Cơm';emoji='🍚';type='Thực phẩm';
+    } else if (k==='food_poultry') {
+      name='Thức ăn gia cầm';emoji='🌾';type='Thức ăn';
+    } else if (k==='food_livestock') {
+      name='Thức ăn gia súc';emoji='🌾';type='Thức ăn';
+    } else if (k==='medicine_animal') {
+      name='Thuốc thú y';emoji='💊';type='Vật phẩm';
     }
     
     const isSelected = selectedInventoryItem === k;
@@ -911,7 +1090,11 @@ function renderInventoryContent() {
   const k = selectedInventoryItem;
   if (k) {
     let name=k, emoji='📦', type='Khác', desc='';
-    if (k.startsWith('harvest_')) {
+    if (k === 'harvest_chicken_egg') {
+      name='Trứng gà';emoji='🥚';type='Nông sản';desc=`Trứng gà tươi ngon thu hoạch từ chuồng gia cầm.<br>Giá bán: <span class="text-yellow-400">50🪙</span>.<br><span class="text-green-400">💡 Ăn để hồi phục +2 Năng lượng.</span>`;
+    } else if (k === 'harvest_cow_milk') {
+      name='Sữa bò';emoji='🥛';type='Nông sản';desc=`Sữa bò tươi nguyên chất thu hoạch từ chuồng gia súc.<br>Giá bán: <span class="text-yellow-400">500🪙</span>.<br><span class="text-green-400">💡 Ăn để hồi phục +10 Năng lượng.</span>`;
+    } else if (k.startsWith('harvest_')) {
       const p=PLANTS_DATA[k.replace('harvest_','')];
       if(p){name=p.name;emoji=p.emoji;type='Nông sản';desc=`Giá bán: <span class="text-yellow-400">${p.sell_price_per_yield}🪙/cái</span><br><br><span class="text-green-400">💡 Có thể ăn để hồi phục +2 Năng lượng.</span>`;}
     } else if (k.startsWith('fertilizer_')) {
@@ -928,10 +1111,18 @@ function renderInventoryContent() {
       name='Mì';emoji='🍜';type='Thực phẩm';desc=`Bát mì ăn liền nóng hổi giúp hồi phục <span class="text-cyan-400">+25 Năng lượng</span>.`;
     } else if (k==='food_rice') {
       name='Cơm';emoji='🍚';type='Thực phẩm';desc=`Bát cơm nóng đầy đặn giúp hồi phục <span class="text-cyan-400">+50 Năng lượng</span>.`;
+    } else if (k==='food_poultry') {
+      name='Thức ăn gia cầm';emoji='🌾';type='Thức ăn';desc=`Thức ăn dùng để cho gà ăn tại chuồng gia cầm. Hồi 100% sinh lực cho gà.`;
+    } else if (k==='food_livestock') {
+      name='Thức ăn gia súc';emoji='🌾';type='Thức ăn';desc=`Thức ăn dùng để cho bò ăn tại chuồng gia súc. Hồi 100% sinh lực cho bò.`;
+    } else if (k==='medicine_animal') {
+      name='Thuốc thú y';emoji='💊';type='Vật phẩm';desc=`Thuốc dùng để điều trị bệnh ngay lập tức cho vật nuôi và bảo vệ vật nuôi khỏi dịch bệnh trong vòng <span class="text-blue-400">24 giờ</span>.`;
     }
 
     let eatGain = 0;
-    if (k.startsWith('harvest_')) eatGain = 2;
+    if (k === 'harvest_chicken_egg') eatGain = 2;
+    else if (k === 'harvest_cow_milk') eatGain = 10;
+    else if (k.startsWith('harvest_')) eatGain = 2;
     else if (k === 'food_bread') eatGain = 10;
     else if (k === 'food_noodle') eatGain = 25;
     else if (k === 'food_rice') eatGain = 50;
@@ -945,6 +1136,24 @@ function renderInventoryContent() {
       `;
     }
 
+    const qty = inv[k] || 0;
+    const discardBlock = `
+      <div class="mt-4 pt-3 border-t border-gray-700/60 flex flex-col gap-2">
+        <div class="text-[11px] text-gray-400 font-bold mb-0.5">Hành động túi đồ:</div>
+        <div class="grid grid-cols-2 gap-2">
+          <button class="btn btn-red py-2 text-xs font-bold flex items-center justify-center gap-1 shadow-sm" 
+                  onclick="handleDiscardItem('${k}', 1)">
+            🗑️ Vứt x1
+          </button>
+          <button class="btn btn-red py-2 text-xs font-bold flex items-center justify-center gap-1 shadow-sm ${qty < 5 ? 'opacity-50 cursor-not-allowed' : ''}" 
+                  ${qty < 5 ? 'disabled' : ''} 
+                  onclick="handleDiscardItem('${k}', 5)">
+            🗑️ Vứt x5
+          </button>
+        </div>
+      </div>
+    `;
+
     detailHtml += `
       <div class="text-center">
         <div class="text-6xl mb-2">${emoji}</div>
@@ -956,6 +1165,7 @@ function renderInventoryContent() {
         ${desc}
       </div>
       ${eatButton}
+      ${discardBlock}
     `;
   }
   detailHtml += `</div>`;
@@ -986,6 +1196,20 @@ function eatFood(key, amount) {
   toast(`🍽️ Đã ăn, hồi phục +${amount} ⚡!`, 'success');
 }
 window.eatFood = eatFood;
+
+function handleDiscardItem(key, qty) {
+  const res = GAME.discardItem(key, qty);
+  if (res.ok) {
+    toast(`🗑️ Đã vứt x${qty} vật phẩm!`, 'info');
+    if (!G.inventory[key]) {
+      selectedInventoryItem = null;
+    }
+    render();
+  } else {
+    toast(res.msg, 'error');
+  }
+}
+window.handleDiscardItem = handleDiscardItem;
 
 
 // ============================================================
@@ -1145,6 +1369,296 @@ function switchView(viewId) {
   }
 }
 
+function renderBarnView(type) {
+  const isPoultry = type === 'poultry';
+  const label = isPoultry ? 'Chuồng gia cầm 🐔' : 'Chuồng gia súc 🐮';
+  const capacity = isPoultry ? G.poultry_capacity : G.livestock_capacity;
+  const list = G.animals.filter(a => a.type === (isPoultry ? 'chicken' : 'cow'));
+  
+  // Price for next expand
+  const expandPrice = 12000 * Math.pow(2, capacity - 3);
+  const feedKey = isPoultry ? 'food_poultry' : 'food_livestock';
+  const feedQty = G.inventory[feedKey] || 0;
+  const feedName = isPoultry ? 'thức ăn gia cầm' : 'thức ăn gia súc';
+  const feedEmoji = '🌾';
+
+  let html = `
+    <div class="flex flex-col gap-4">
+      <!-- Barn Header -->
+      <div class="bg-gray-800/80 border border-gray-700 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+        <div>
+          <h2 class="text-lg font-bold text-yellow-400 flex items-center gap-2">
+            <span>${isPoultry ? '🐔' : '🐮'}</span>
+            <span>${label}</span>
+          </h2>
+          <div class="text-xs text-gray-400 mt-1 font-semibold flex items-center gap-1.5">
+            <span>Sức chứa:</span>
+            <span class="text-cyan-400 font-bold">${list.length}/${capacity} con</span>
+            <span class="text-gray-600">|</span>
+            <span>Tối đa: 20 con</span>
+          </div>
+        </div>
+        <div>
+  `;
+
+  if (capacity < 20) {
+    html += `
+          <button class="btn btn-green text-xs font-bold py-2 px-3 shadow-md" onclick="handleExpandBarn('${type}')">
+            🏗️ Mở rộng +1 sức chứa (${expandPrice}🪙)
+          </button>
+    `;
+  } else {
+    html += `
+          <span class="text-xs text-gray-500 font-bold">✓ Chuồng đã mở tối đa</span>
+    `;
+  }
+
+  html += `
+        </div>
+      </div>
+      
+      <!-- Animal Grid -->
+  `;
+
+  if (list.length === 0) {
+    html += `
+      <div class="flex flex-col items-center justify-center py-12 bg-gray-900/50 rounded-2xl border border-dashed border-gray-700 text-center">
+        <span class="text-5xl mb-3">${isPoultry ? '🐔' : '🐮'}</span>
+        <div class="text-gray-300 font-bold mb-1">Chuồng đang trống</div>
+        <p class="text-xs text-gray-500 mb-4">Hãy mua vật nuôi từ tiệm tạp hóa để bắt đầu chăn nuôi.</p>
+        <button class="btn btn-yellow text-xs font-bold py-2 px-4 shadow-md" onclick="switchView('viewShop')">
+          🏪 Đến Cửa hàng mua vật nuôi
+        </button>
+      </div>
+    `;
+  } else {
+    html += `<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">`;
+    list.forEach(a => {
+      // Run lazyUpdate before displaying
+      a.lazyUpdate(Date.now());
+      
+      const now = Date.now();
+      const age = now - a.purchased_at;
+      const hoursToAdult = 4;
+      const msPerHour = 3600000;
+      
+      let statusText = '';
+      let statusColor = '';
+      let timeText = '';
+      
+      let protectionText = '';
+      if (a.status !== 'dead' && a.medicine_until && a.medicine_until > now) {
+        protectionText = `<div class="text-[11px] text-cyan-400 font-bold flex items-center gap-1 mt-0.5">🛡️ Kháng bệnh: ${formatTime(a.medicine_until - now)}</div>`;
+      }
+
+      if (a.status === 'dead') {
+        statusText = 'Đã chết 💀';
+        statusColor = 'text-red-400';
+        timeText = 'Sinh vật đã qua đời';
+      } else if (a.sick_started_at) {
+        statusText = 'Nhiễm bệnh 🤒';
+        statusColor = 'text-purple-400 font-extrabold animate-pulse';
+        if (a.status === 'baby') {
+          const remaining = Math.max(0, hoursToAdult * msPerHour - a.grown_ms);
+          timeText = `Trưởng thành sau: <span class="text-white font-bold font-mono">${formatTime(remaining)}</span> <span class="text-purple-400 font-semibold block text-[10px] mt-0.5">⚠️ Đã dừng lớn do bệnh</span>`;
+        } else {
+          const remainingLifespan = Math.max(0, 14 * 24 * msPerHour - age);
+          timeText = `Tuổi thọ còn: <span class="text-white font-bold font-mono">${formatTime(remainingLifespan)}</span> <span class="text-purple-400 font-semibold block text-[10px] mt-0.5">⚠️ Đã dừng sản xuất do bệnh</span>`;
+        }
+      } else if (a.status === 'baby') {
+        statusText = 'Con non 🍼';
+        statusColor = 'text-green-400';
+        const remaining = Math.max(0, hoursToAdult * msPerHour - a.grown_ms);
+        timeText = `Trưởng thành sau: <span class="text-white font-bold font-mono">${formatTime(remaining)}</span>`;
+      } else {
+        statusText = 'Trưởng thành ✨';
+        statusColor = 'text-yellow-400';
+        const remainingLifespan = Math.max(0, 14 * 24 * msPerHour - age);
+        timeText = `Tuổi thọ còn: <span class="text-white font-bold font-mono">${formatTime(remainingLifespan)}</span>`;
+      }
+
+      const hp = Math.round(a.health);
+      const hpColor = hp <= 20 ? 'bg-red-500' : hp <= 50 ? 'bg-yellow-500' : 'bg-green-500';
+      const accumulated = Math.floor(a.accumulated_production);
+      const maxProd = a.max_production;
+
+      html += `
+        <div class="bg-gray-800/80 border border-gray-700 rounded-2xl p-4 flex flex-col justify-between hover:border-gray-500 transition-all shadow-lg relative">
+          <!-- Top section -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-3xl">${a.emoji}</span>
+              <span class="text-xs font-bold uppercase tracking-wider ${statusColor}">${statusText}</span>
+            </div>
+            
+            <div class="space-y-1.5 text-xs text-gray-300">
+              <div>${timeText}</div>
+              ${protectionText}
+              
+              <!-- Health bar -->
+              <div>
+                <div class="flex justify-between mb-0.5 font-semibold text-[11px]">
+                  <span>Sinh lực:</span>
+                  <span class="${hp <= 20 ? 'text-red-400' : hp <= 50 ? 'text-yellow-400' : 'text-green-400'} font-bold font-mono">${hp}%</span>
+                </div>
+                <div class="w-full bg-gray-900 rounded-full h-2 overflow-hidden shadow-inner border border-gray-700">
+                  <div class="${hpColor} h-2 rounded-full transition-all" style="width: ${hp}%"></div>
+                </div>
+              </div>
+              
+              <!-- Production info -->
+              ${a.status === 'adult' ? `
+                <div class="flex justify-between items-center py-1 border-t border-gray-700/60 mt-2">
+                  <span>${isPoultry ? '🥚 Trứng tích lũy:' : '🥛 Sữa tích lũy:'}</span>
+                  <span class="font-bold font-mono text-cyan-400">${accumulated}/${maxProd}</span>
+                </div>
+                ${accumulated >= maxProd ? `
+                  <div class="text-[10px] text-yellow-500 font-bold animate-pulse text-right">⚠️ Đã đầy sản lượng! Cần thu hoạch.</div>
+                ` : ''}
+              ` : ''}
+            </div>
+          </div>
+          
+          <!-- Bottom actions -->
+          <div class="mt-4 pt-3 border-t border-gray-700/60 flex flex-col gap-1.5">
+      `;
+
+      if (a.status === 'dead') {
+        html += `
+            <button class="btn btn-gray w-full py-2 text-xs font-bold" onclick="handleRemoveDeadAnimal('${a.id}')">
+              🗑️ Dọn dẹp xác vật nuôi
+            </button>
+        `;
+      } else {
+        html += `<div class="grid grid-cols-2 gap-2">`;
+        
+        // Feed button (can feed only when hp <= 50)
+        const isHungry = hp <= 50;
+        html += `
+          <button class="btn ${isHungry ? 'btn-blue' : 'btn-gray opacity-50 cursor-not-allowed'} py-2 text-xs font-bold flex items-center justify-center gap-1" 
+                  ${isHungry ? `onclick="handleFeedAnimal('${a.id}')"` : 'disabled'}
+                  title="${isHungry ? 'Cho ăn' : 'Chưa thể cho ăn (chỉ khi sinh lực <= 50%)'}">
+            🥣 Cho ăn (Còn x${feedQty})
+          </button>
+        `;
+
+        if (a.status === 'adult') {
+          // Harvest button
+          const hasProduce = accumulated >= 1;
+          html += `
+            <button class="btn ${hasProduce ? 'btn-yellow animate-bounce' : 'btn-gray opacity-50 cursor-not-allowed'} py-2 text-xs font-bold" 
+                    ${hasProduce ? `onclick="handleHarvestAnimal('${a.id}')"` : 'disabled'}>
+              🧺 Thu hoạch
+            </button>
+          `;
+          html += `</div>`; // Close grid
+
+          // Sell button
+          html += `
+            <button class="btn btn-green w-full py-2 text-xs font-bold mt-1.5" onclick="handleSellAnimal('${a.id}')">
+              💰 Bán vật nuôi (+${a.sell_price}🪙)
+            </button>
+          `;
+        } else {
+          // Baby has no harvest or sell
+          html += `
+            <button class="btn btn-gray opacity-50 cursor-not-allowed py-2 text-xs font-bold" disabled>
+              🚫 Chưa thể thu hoạch
+            </button>
+          </div>
+          `;
+        }
+        const medQty = G.inventory['medicine_animal'] || 0;
+        html += `
+          <button class="btn btn-purple w-full py-2 text-xs font-bold mt-1.5 flex items-center justify-center gap-1"
+                  onclick="handleCureAnimal('${a.id}')">
+            💊 Tiêm thuốc (Còn x${medQty})
+          </button>
+        `;
+      }
+
+      html += `
+          </div>
+        </div>
+      `;
+    });
+    html += `</div>`;
+  }
+
+  html += `
+    </div>
+  `;
+  return html;
+}
+
+function handleExpandBarn(type) {
+  const res = GAME.expandBarn(type);
+  if (res.ok) {
+    render();
+    toast(`🏗️ Mở rộng chuồng thành công! Sức chứa mới: ${res.newCap} con`, 'success');
+  } else {
+    toast(res.msg, 'error');
+  }
+}
+
+function handleFeedAnimal(id) {
+  const res = GAME.feedAnimal(id);
+  if (res.ok) {
+    render();
+    toast(`🥣 Cho vật nuôi ăn thành công! Sinh lực hồi phục 100%`, 'success');
+  } else {
+    toast(res.msg, 'error');
+  }
+}
+
+function handleHarvestAnimal(id) {
+  const res = GAME.harvestAnimal(id);
+  if (res.ok) {
+    render();
+    const name = res.item === 'harvest_chicken_egg' ? 'Trứng gà' : 'Sữa bò';
+    toast(`🧺 Đã thu hoạch ${res.qty} ${name}! (+${res.item === 'harvest_chicken_egg' ? res.qty * 50 : res.qty * 500}🪙 nếu bán)`, 'success');
+  } else {
+    toast(res.msg, 'error');
+  }
+}
+
+function handleSellAnimal(id) {
+  const res = GAME.sellAnimal(id);
+  if (res.ok) {
+    render();
+    toast(`💰 Đã bán vật nuôi! Nhận được +${res.price}🪙`, 'success');
+  } else {
+    toast(res.msg, 'error');
+  }
+}
+
+function handleRemoveDeadAnimal(id) {
+  const res = GAME.removeDeadAnimal(id);
+  if (res.ok) {
+    render();
+    toast(`🗑️ Đã dọn dẹp xác vật nuôi`, 'info');
+  } else {
+    toast(res.msg, 'error');
+  }
+}
+
+function handleCureAnimal(id) {
+  const res = GAME.cureAnimal(id);
+  if (res.ok) {
+    render();
+    toast(`💊 Đã tiêm thuốc trị bệnh và bảo vệ thành công!`, 'success');
+  } else {
+    toast(res.msg, 'error');
+  }
+}
+
+function updateGold() {
+  const goldEl = document.getElementById('goldDisplay');
+  if (goldEl) goldEl.textContent = Math.floor(G.gold);
+  const energyEl = document.getElementById('energyDisplay');
+  if (energyEl) energyEl.textContent = Math.floor(G.energy);
+}
+
 // Expose key UI interaction functions to global window object
 window.closePlotModal = closePlotModal;
 window.openPlantingView = openPlantingView;
@@ -1163,13 +1677,21 @@ window.handleHarvest = handleHarvest;
 window.handleRemoveDead = handleRemoveDead;
 window.handleClearPlot = handleClearPlot;
 window.handleBuyLand = handleBuyLand;
-window.switchZone = switchZone;
 window.showShopTab = showShopTab;
 window.closeShopItemModal = closeShopItemModal;
 window.openShopItemModal = openShopItemModal;
 window.selectShopItem = selectShopItem;
 window.shopBuy = shopBuy;
 window.shopSell = shopSell;
+window.handleExpandBarn = handleExpandBarn;
+window.handleFeedAnimal = handleFeedAnimal;
+window.handleHarvestAnimal = handleHarvestAnimal;
+window.handleSellAnimal = handleSellAnimal;
+window.handleRemoveDeadAnimal = handleRemoveDeadAnimal;
+window.handleCureAnimal = handleCureAnimal;
+window.switchFarmTab = switchFarmTab;
+window.selectPlotCell = selectPlotCell;
+window.updateGold = updateGold;
 
 
 // Global Delegated Click Listener to handle dynamic DOM elements cleanly
@@ -1188,15 +1710,6 @@ document.addEventListener('click', (e) => {
   if (plotCell && plotCell.hasAttribute('data-plot-key')) {
     const key = plotCell.getAttribute('data-plot-key');
     selectPlot(key);
-    e.preventDefault();
-    return;
-  }
-
-  // 3. Switch zone tab
-  const zoneTab = target.closest('.zone-tab');
-  if (zoneTab && zoneTab.hasAttribute('data-zone-id')) {
-    const zoneId = parseInt(zoneTab.getAttribute('data-zone-id'));
-    switchZone(zoneId);
     e.preventDefault();
     return;
   }
