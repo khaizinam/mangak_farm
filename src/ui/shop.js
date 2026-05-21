@@ -382,7 +382,7 @@ export function renderSellTab() {
           <!-- Quantity Selector Row -->
           <div class="flex items-center justify-between gap-1 bg-gray-900/60 p-1 rounded-lg border border-gray-700/60">
             <button class="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-white rounded text-xs font-bold transition-colors select-none" onclick="adjustSellQty('${k}', -1, ${inv[k]})">-</button>
-            <input type="number" id="sell_qty_${k}" class="no-spinner w-12 bg-transparent text-center text-xs font-bold text-white outline-none border-none" value="1" min="1" max="${inv[k]}" oninput="validateSellQty('${k}', ${inv[k]})" onblur="if(this.value === '' || parseInt(this.value) < 1) this.value = 1;" onkeydown="if(event.key==='Enter') handleShopSellCustom('${k}', ${inv[k]})">
+            <input type="number" id="sell_qty_${k}" class="no-spinner w-12 bg-gray-950 border border-gray-700/80 rounded py-0.5 text-center text-xs font-bold text-white focus:border-yellow-500 focus:outline-none" value="1" min="1" max="${inv[k]}" oninput="validateSellQty('${k}', ${inv[k]})" onblur="if(this.value === '' || parseInt(this.value) < 1) this.value = 1;" onkeydown="if(event.key==='Enter') handleShopSellCustom('${k}', ${inv[k]})">
             <button class="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-white rounded text-xs font-bold transition-colors select-none" onclick="adjustSellQty('${k}', 1, ${inv[k]})">+</button>
             <button class="px-1.5 py-0.5 bg-yellow-600/30 hover:bg-yellow-600/50 text-[10px] font-bold rounded text-yellow-400 transition-colors select-none" onclick="setSellQtyMax('${k}', ${inv[k]})">MAX</button>
           </div>
