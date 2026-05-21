@@ -696,9 +696,12 @@ class BaseAnimal {
     }
 
     // --- Update Production ---
-    if (this.status === 'adult' && this.health > 0) {
+    // Cho phép tính sản lượng kể cả khi health vừa về 0 trong tick này,
+    // miễn là dead_at còn giới hạn activeHours về khoảng thời gian hợp lệ.
+    if (this.status === 'adult' && (this.health > 0 || this.dead_at)) {
       let activeHours = elapsedHours;
       if (this.dead_at) {
+        // Chỉ tính sản lượng đến thời điểm health = 0
         const activeTime = this.dead_at - this.last_calculated_at;
         activeHours = Math.max(0, activeTime / msPerHour);
       }
