@@ -262,6 +262,15 @@ export function handleHarvestAnimal(id) {
 window.handleHarvestAnimal = handleHarvestAnimal;
 
 export function handleSellAnimal(id) {
+  const animal = G.animals.find(a => a.id === id);
+  if (!animal) {
+    toast('Không tìm thấy vật nuôi!', 'error');
+    return;
+  }
+  const name = animal.type === 'chicken' ? 'Gà' : (animal.type === 'cow' ? 'Bò' : animal.type);
+  if (!confirm(`Bạn có chắc chắn muốn bán con ${name} này với giá ${animal.sell_price}🪙 không?`)) {
+    return;
+  }
   const res = GAME.sellAnimal(id);
   if (res.ok) {
     render();

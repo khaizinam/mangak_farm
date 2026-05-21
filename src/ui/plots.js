@@ -493,6 +493,12 @@ export function handleHarvest(key) {
 window.handleHarvest = handleHarvest;
 
 export function handleRemoveDead(key) {
+  const up = G.plants[key];
+  if (!up) return;
+  const plant = PLANTS_DATA[up.plant_id];
+  if (!confirm(`Bạn có chắc chắn muốn dọn cây chết ${plant.name} không? (Tốn 1 ⚡)`)) {
+    return;
+  }
   const res = removeDead(key);
   if (res && res.ok) {
     closePlotModal();

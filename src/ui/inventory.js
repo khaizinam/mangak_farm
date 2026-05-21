@@ -183,6 +183,43 @@ export function eatFood(key, amount) {
 window.eatFood = eatFood;
 
 export function handleDiscardItem(key, qty) {
+  let name = key;
+  if (key === 'harvest_chicken_egg') {
+    name = 'Trứng gà';
+  } else if (key === 'harvest_cow_milk') {
+    name = 'Sữa bò';
+  } else if (key.startsWith('harvest_')) {
+    const p = PLANTS_DATA[key.replace('harvest_','')];
+    if (p) { name = p.name; }
+  } else if (key.startsWith('fertilizer_')) {
+    const f = parseInt(key.replace('fertilizer_',''));
+    const fd = FERTILIZER_DATA[f];
+    if (fd) { name = fd.name; }
+  } else if (key === 'pesticide') {
+    name = 'Thuốc trừ sâu';
+  } else if (key === 'food_bread') {
+    name = 'Bánh mì';
+  } else if (key === 'food_noodle') {
+    name = 'Mì';
+  } else if (key === 'food_rice') {
+    name = 'Cơm';
+  } else if (key === 'food_poultry') {
+    name = 'Thức ăn gia cầm';
+  } else if (key === 'food_livestock') {
+    name = 'Thức ăn gia súc';
+  } else if (key === 'medicine_animal') {
+    name = 'Thuốc thú y';
+  } else if (PLANTS_DATA[key]) {
+    const p = PLANTS_DATA[key];
+    name = p.name + ' (hạt giống)';
+  } else if (key === 'cheese') {
+    name = 'Phô mai';
+  }
+
+  if (!confirm(`Bạn có chắc chắn muốn vứt x${qty} ${name} không?`)) {
+    return;
+  }
+
   const res = GAME.discardItem(key, qty);
   if (res.ok) {
     toast(`🗑️ Đã vứt x${qty} vật phẩm!`, 'info');
