@@ -188,7 +188,7 @@ export function renderShopItemDetails(itemId) {
         <div class="flex justify-between border-b border-gray-700 pb-1"><span>Thời gian trưởng thành:</span> <span class="text-blue-400">4 giờ</span></div>
         <div class="flex justify-between border-b border-gray-700 pb-1"><span>Tuổi thọ:</span> <span class="text-green-400">14 ngày</span></div>
         <div class="flex justify-between border-b border-gray-700 pb-1"><span>Sản lượng:</span> <span class="text-cyan-400">${isChicken ? '20 trứng/giờ' : '5 sữa bò/giờ'}</span></div>
-        <div class="text-[11px] text-gray-400 mt-1">💡 Cần cho ăn cứ mỗi 6 giờ bằng <b>${isChicken ? 'thức ăn gia cầm' : 'thức ăn gia súc'}</b> (khi sinh lực <= 50%). Nếu sinh lực về 0 và không cho ăn trong 6 giờ, vật nuôi sẽ chết.</div>
+        <div class="text-[11px] text-gray-400 mt-1">💡 Cần cho ăn cứ mỗi 6 giờ bằng <b>${isChicken ? 'thức ăn gia cầm' : 'thức ăn gia súc'}</b> (khi sinh lực <= 50%). Nếu sinh lực về 0 và không cho ăn trong 5 ngày, vật nuôi sẽ chết.</div>
       </div>
       <div class="mt-4 md:mt-auto flex flex-col gap-2">
         <button class="btn btn-green w-full py-2.5 font-bold" onclick="shopBuy('animal', '${selectedItem.id}', 1)">Mua x1 (${a.buy_price}🪙)</button>

@@ -650,10 +650,10 @@ class BaseAnimal {
       }
     }
 
-    // --- Check death from starvation (6h after zero health) ---
+    // --- Check death from starvation (5 days after zero health) ---
     if (this.dead_at) {
       const timeSinceZeroHealth = now - this.dead_at;
-      if (timeSinceZeroHealth >= 6 * msPerHour) {
+      if (timeSinceZeroHealth >= 5 * 24 * msPerHour) {
         this.status = 'dead';
         this.health = 0;
         this.last_calculated_at = now;
